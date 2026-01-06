@@ -1,6 +1,6 @@
-# Memory Disclosure & Vulnerability Research Guide
+# Memory Disclosure Vulnerability Guide
 
-A practical guide for security researchers hunting memory disclosure, buffer overflows, and related vulnerabilities across enterprise systems, network infrastructure, embedded devices, cloud services, and application software.
+A practical guide for understanding Memory Disclosure vulnerabilities—where attacker-controlled length fields or missing bounds checks cause programs to read beyond intended buffer boundaries, leaking sensitive data like keys, tokens, and credentials.
 
 ## Table of Contents
 
@@ -55,9 +55,9 @@ Vendors repeat the same implementation mistakes because:
 
 ## Vulnerability Classes
 
-Understanding the taxonomy helps focus research efforts.
+Memory disclosure is specifically about **reading beyond intended boundaries**. The core classes are:
 
-### Memory Safety Issues
+### Memory Safety Issues (Core Focus)
 
 | CWE | Name | Description | Example |
 |-----|------|-------------|---------|
@@ -69,24 +69,17 @@ Understanding the taxonomy helps focus research efforts.
 | CWE-121 | Stack-based Buffer Overflow | Overflow in stack memory | Classic exploitation |
 | CWE-190 | Integer Overflow | Arithmetic overflow leading to small allocation | Allocation + copy bugs |
 
-### Input Validation Issues
+### Related but Distinct Patterns
 
-| CWE | Name | Description | Example |
-|-----|------|-------------|---------|
-| CWE-78 | OS Command Injection | Unsanitized input to shell | Router ping utilities |
-| CWE-89 | SQL Injection | Unsanitized input to SQL | Web application backends |
-| CWE-611 | XXE Injection | XML external entity processing | SOAP/XML APIs |
-| CWE-22 | Path Traversal | Directory escape via ../ | File download endpoints |
-| CWE-134 | Format String | User input in printf-family functions | Logging code |
+The following vulnerability classes are often *discovered alongside* memory disclosure, but represent fundamentally different patterns covered in separate guides:
 
-### Authentication & Access Control
-
-| CWE | Name | Description | Example |
-|-----|------|-------------|---------|
-| CWE-287 | Improper Authentication | Auth bypass or weakness | Default credentials |
-| CWE-639 | IDOR | Insecure direct object reference | API enumeration |
-| CWE-862 | Missing Authorization | No access control check | Admin function exposure |
-| CWE-798 | Hardcoded Credentials | Embedded secrets | Cloud connector keys |
+| Pattern | Why It's Different | See Guide |
+|---------|-------------------|-----------|
+| Command Injection | Input → Shell execution, not memory leakage | - |
+| Path Traversal | File access control, not buffer overread | Canonicalization |
+| SQL Injection | Query manipulation, different trust boundary | - |
+| Format String | Can cause disclosure, but via printf specifiers not length fields | - |
+| IDOR | Authorization failure, not memory boundary failure | Reference Confusion |
 
 ---
 
@@ -755,48 +748,21 @@ def generate_length_mutations(base_packet, length_offset, length_size):
 
 ### Web Application Backends
 
-#### Recurring Vulnerability Patterns
+---
 
-| Pattern | Description | Common Locations |
-|---------|-------------|------------------|
-| Command injection | Unsanitized input to system() | Diagnostic tools |
-| SQL injection | Unsanitized input to database | Search, login |
-| Path traversal | Directory escape | File download |
-| Authentication bypass | Auth checked inconsistently | API endpoints |
+### Web Application Backends
 
-#### Example: Command Injection in Diagnostic Tools
+#### Memory Disclosure in Web Contexts
 
-```
-VULNERABLE CGI ENDPOINT: /cgi-bin/ping.cgi
+Web applications can suffer from memory disclosure through:
 
-NORMAL REQUEST:
-POST /cgi-bin/ping.cgi HTTP/1.1
-Content-Type: application/x-www-form-urlencoded
+| Pattern | Description | Example |
+|---------|-------------|---------|
+| Buffer overread in CGI | Native code parses request, trusts length field | Custom C parsers |
+| Out-of-bounds in image/PDF | Backend processes uploaded file, trusts metadata | ImageMagick, Ghostscript |
+| Memory leak in response | Debug data, uninitialized memory in reply | Custom frameworks |
 
-target=192.168.1.1
-
-Backend: system("ping -c 3 192.168.1.1");
-
-
-MALICIOUS REQUEST:
-target=192.168.1.1;cat /etc/shadow
-
-Backend executes: ping -c 3 192.168.1.1;cat /etc/shadow
-```
-
-#### Example: Path Traversal
-
-```
-VULNERABLE: /cgi-bin/download.cgi?file=report.pdf
-
-MALICIOUS:
-GET /cgi-bin/download.cgi?file=../../../etc/passwd
-
-ENCODED VARIANTS TO TRY:
-..%2f..%2f..%2fetc/passwd          URL encoded
-..%252f..%252f..%252fetc/passwd    Double encoded
-....//....//....//etc/passwd       Doubled dots
-```
+*Note: Command injection, SQL injection, and path traversal are distinct patterns with different root causes. See their respective guides.*
 
 ---
 
@@ -842,24 +808,19 @@ IPMI HASH DISCLOSURE (RAKP):
 
 ### Service Discovery Protocols
 
-#### UPnP/SSDP
+#### UPnP/SSDP Memory Disclosure
 
 ```
-MALICIOUS SOAP REQUEST (command injection):
-POST /ctl/IPConn HTTP/1.1
-SOAPAction: "...WANIPConnection:1#AddPortMapping"
-
-<NewPortMappingDescription>test`reboot`</NewPortMappingDescription>
-
-Some routers execute description in shell context.
-
-
-SSDP STACK OVERFLOW:
+SSDP STACK OVERFLOW (Length Field Pattern):
 M-SEARCH * HTTP/1.1
 ST: [10000 bytes of data]
 
-Vulnerable parsers use fixed-size buffers.
+Vulnerable parsers use fixed-size buffers for the ST field.
+If they trust the incoming length or don't bound the read,
+adjacent stack memory is overwritten or disclosed.
 ```
+
+*Note: Command injection via SOAP is a separate vulnerability class.*
 
 ---
 
@@ -879,16 +840,20 @@ Truncated to 32-bit: 0x00000004 (4 bytes allocated!)
 Parser writes 4GB into 4-byte buffer.
 ```
 
-#### Example: ZIP Path Traversal (Zip Slip)
+#### Example: ZIP Parsing Integer Overflow
 
 ```
-Archive contains: ../../../etc/cron.d/malicious
+ZIP Local File Header contains compressed/uncompressed sizes.
 
-Vulnerable extraction:
-output_path = os.path.join(dest_dir, entry)  # No sanitization
+If uncompressed_size is crafted:
+uncompressed_size: 0x00000010 (16 bytes)
+actual_data: 64KB
 
-Result: Writes to /etc/cron.d/malicious
+Decompressor allocates 16 bytes, writes 64KB.
+Result: Heap overflow (memory corruption, potential disclosure).
 ```
+
+*Note: Zip Slip (path traversal during extraction) is a canonicalization bug, not memory disclosure.*
 
 ---
 
