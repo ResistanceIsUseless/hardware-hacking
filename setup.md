@@ -11,12 +11,14 @@ This guide covers complete software installation for a hardware hacking lab focu
 
 | Tool | Primary Role | Price |
 |------|-------------|-------|
-| **Bus Pirate v5/v6** | Protocol interface (UART, SPI, I2C, JTAG) | ~$60 |
+| **Bus Pirate v5/v6** | Protocol interface (UART, SPI, I2C), pin detection | ~$60 |
 | **GreatFET One** | USB security (emulation, MITM, fuzzing) | ~$120 |
 | **Curious Bolt** | Voltage glitching + power analysis + logic analyzer | ~$150 |
-| **Faulty Cat v2.1** | EMFI + voltage glitch + SWD/JTAG detection | ~$100 |
-| **Shikra** | Fast SPI flash dumps, JTAG, UART | ~$45 |
-| **Total** | Comprehensive hardware hacking lab | **~$475** |
+| **Faulty Cat v2.1** | EMFI + voltage glitch + SWD/JTAG pin detection | ~$100 |
+| **Tigard** | Multi-protocol (UART, SPI, I2C, JTAG, SWD) - FT2232H based | ~$49 |
+| **Shikra** | Fast SPI flash dumps, UART - Alternative to Tigard | ~$45 |
+| **ST-Link v2** | SWD/JTAG debugging and firmware download for STM32 | ~$10 |
+| **Total** | Comprehensive hardware hacking lab | **~$589** |
 
 ---
 
@@ -518,12 +520,108 @@ flashrom -p ft2232_spi:type=232H -v firmware_dump.bin
 
 ### 6.3 Speed Comparison
 
-| Tool | 4MB Flash Read Time |
-|------|---------------------|
-| Bus Pirate | ~30-45 minutes |
-| Shikra | ~3-5 minutes |
-| Tigard | ~3-5 minutes |
-| CH341A | ~2-3 minutes |
+| Tool | 4MB Flash Read Time | SWD/JTAG Support |
+|------|---------------------|------------------|
+| Bus Pirate | ~30-45 minutes | No |
+| Shikra | ~3-5 minutes | No |
+| Tigard | ~3-5 minutes | **Yes (via OpenOCD)** |
+| CH341A | ~2-3 minutes | No |
+
+**Note:** Tigard uses the same FT2232H chip as Shikra but exposes JTAG/SWD pins, making it more versatile.
+
+---
+
+## Part 7: Tigard Setup (Multi-Protocol with JTAG/SWD)
+
+Tigard is an FT2232H-based multi-protocol tool that supports:
+- UART, SPI, I2C (like Shikra)
+- JTAG and SWD (unlike Shikra)
+- 1.8V to 5V level shifting
+
+### 7.1 Software Setup
+
+Tigard uses the same tools as Shikra (flashrom, OpenOCD).
+
+**Install dependencies (already done if following guide):**
+```bash
+# macOS
+brew install flashrom libftdi openocd
+
+# Linux
+sudo apt install -y flashrom libftdi1-dev openocd
+```
+
+### 7.2 SPI Flash with Tigard
+
+Tigard has clearly labeled SPI pins making wiring easier:
+
+```bash
+# Identify flash chip
+flashrom -p ft2232_spi:type=2232H,port=A -V
+
+# Read flash
+flashrom -p ft2232_spi:type=2232H,port=A -r firmware_dump.bin
+
+# Write flash
+flashrom -p ft2232_spi:type=2232H,port=A -w new_firmware.bin
+```
+
+### 7.3 JTAG/SWD with Tigard
+
+**Tigard Advantage:** Unlike Shikra, Tigard can be used for JTAG/SWD debugging via OpenOCD.
+
+**STM32 SWD Example:**
+```bash
+# Connect Tigard to target:
+# VTGT → Target 3.3V (for level reference)
+# GND  → Target GND
+# SWDIO → Target SWDIO
+# SWCLK → Target SWCLK
+
+# OpenOCD with Tigard
+openocd -f interface/ftdi/tigard.cfg -f target/stm32f1x.cfg \
+    -c "init" \
+    -c "reset halt" \
+    -c "flash read_bank 0 dump.bin" \
+    -c "shutdown"
+```
+
+**Create Tigard OpenOCD Config:**
+
+If `tigard.cfg` doesn't exist, create `/usr/local/share/openocd/scripts/interface/ftdi/tigard.cfg`:
+
+```tcl
+# Tigard FT2232H Configuration
+adapter driver ftdi
+ftdi device_desc "Tigard V1.1"
+ftdi vid_pid 0x0403 0x6010
+
+# Channel A for JTAG/SWD
+ftdi channel 0
+ftdi layout_init 0x0038 0x003b
+ftdi layout_signal nTRST -data 0x0010
+ftdi layout_signal nSRST -data 0x0020
+
+# Speed
+adapter speed 1000
+```
+
+### 7.4 Tigard vs Shikra Comparison
+
+| Feature | Tigard | Shikra |
+|---------|--------|--------|
+| **SPI Flash** | ✅ Fast | ✅ Fast |
+| **UART** | ✅ Yes | ✅ Yes |
+| **I2C** | ✅ Yes | ✅ Yes |
+| **JTAG** | ✅ Yes | ❌ No |
+| **SWD** | ✅ Yes | ❌ No |
+| **Level Shifting** | ✅ 1.8V-5V | ⚠️  3.3V only |
+| **OpenOCD Support** | ✅ Full | ⚠️  SPI only |
+| **Price** | ~$49 | ~$45 |
+
+**Recommendation:**
+- **Choose Tigard if** you need JTAG/SWD capability or work with multiple voltage levels
+- **Choose Shikra if** you only need fast SPI flash dumps and save $4
 
 ---
 
@@ -905,7 +1003,50 @@ picocom -b 115200 /dev/ttyACM0
 
 ## Part 12: Debug Interface Tools
 
-### 12.1 OpenOCD (JTAG/SWD)
+### 12.1 ST-Link Setup (SWD/JTAG Debugging)
+
+ST-Link is essential for actual SWD/JTAG debugging, firmware download, and flash extraction on ARM Cortex-M devices.
+
+**macOS:**
+```bash
+# Install via Homebrew
+brew install stlink
+
+# Or download ST official tools
+# https://www.st.com/en/development-tools/st-link-v2.html
+```
+
+**Linux:**
+```bash
+# Install stlink-tools
+sudo apt install -y stlink-tools
+
+# Or build from source
+git clone https://github.com/stlink-org/stlink.git
+cd stlink
+make
+sudo make install
+```
+
+**Test ST-Link Connection:**
+```bash
+# Detect connected ST-Link
+st-info --probe
+
+# Read device info
+st-info --descr
+
+# Read flash
+st-flash read firmware_dump.bin 0x08000000 0x10000
+
+# Write flash
+st-flash write firmware.bin 0x08000000
+
+# Erase flash
+st-flash erase
+```
+
+### 12.2 OpenOCD (JTAG/SWD)
 
 ```bash
 # macOS:
@@ -923,17 +1064,29 @@ make
 sudo make install
 ```
 
-### 12.2 OpenOCD with Your Hardware
+### 12.2 OpenOCD with ST-Link
 
-**Bus Pirate as JTAG:**
+**Note:** Bus Pirate v5/v6 does NOT support JTAG/SWD debugging. While older Bus Pirate versions had experimental JTAG support, it was unreliable. For actual SWD/JTAG debugging and firmware download, you need a dedicated debugger like ST-Link.
+
+**ST-Link with OpenOCD:**
 ```bash
-openocd -f interface/buspirate.cfg -f target/stm32f1x.cfg
+# For STM32 targets
+openocd -f interface/stlink.cfg -f target/stm32f1x.cfg
+
+# Common ST-Link commands
+openocd -f interface/stlink.cfg -f target/stm32f1x.cfg \
+    -c "init" \
+    -c "reset halt" \
+    -c "flash write_image erase firmware.bin 0x08000000" \
+    -c "reset run" \
+    -c "shutdown"
 ```
 
-**GreatFET as debugger:**
-```bash
-# GreatFET can act as JTAG/SWD adapter
-# Check GreatFET documentation for specifics
+**Pin Detection vs. Debugging:**
+```
+Bus Pirate: Can help IDENTIFY pin functions (using logic analyzer mode)
+Faulty Cat: Has SWD/JTAG pin DETECTION (like JTAGulator)
+ST-Link:    Actually USES SWD/JTAG for debugging and firmware download
 ```
 
 ### 12.3 GDB for Debugging

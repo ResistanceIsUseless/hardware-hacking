@@ -28,10 +28,10 @@ This guide walks you through solving the 4 hardware security challenges from the
 | Tool | Primary Use | Key Specs |
 |------|-------------|-----------|
 | **Curious Bolt** | Voltage glitching, power analysis, logic analyzer | 8.3ns glitch precision, 35MSPS scope |
-| **Bus Pirate v5/v6** | Protocol analysis (UART, SPI, I2C), initial recon | Multi-protocol, scriptable |
-| **Faulty Cat v2.1** | Electromagnetic Fault Injection (EMFI) | ~250V pulse, SWD/JTAG detection |
+| **Bus Pirate v5/v6** | Protocol analysis (UART, SPI, I2C), initial recon | Multi-protocol, scriptable, pin detection |
+| **Faulty Cat v2.1** | Electromagnetic Fault Injection (EMFI) | ~250V pulse, SWD/JTAG pin detection |
 | **Shikra** | Fast SPI flash dumping | FT2232H, 3-5min for 4MB |
-| **SWD Programmer** | Firmware upload/debug | ST-Link compatible |
+| **ST-Link v2** | SWD/JTAG debugging, firmware upload/download | Essential for STM32 flash extraction |
 
 ### When to Use What
 
@@ -56,7 +56,11 @@ This guide walks you through solving the 4 hardware security challenges from the
 │     └── YES → Curious Bolt (35MSPS differential scope)         │
 │                                                                 │
 │  Need to find debug pins (SWD/JTAG)?                           │
-│     └── YES → Faulty Cat (has JTAGulator-like detection)       │
+│     └── YES → Faulty Cat (pin detection, NOT debugging)        │
+│            → Bus Pirate (can help identify with logic analyzer)│
+│                                                                 │
+│  Need to actually USE SWD/JTAG for debugging/download?         │
+│     └── YES → ST-Link v2 (REQUIRED for firmware extraction)    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -94,10 +98,11 @@ This guide walks you through solving the 4 hardware security challenges from the
 | Challenge | Primary Tool | Secondary Tool | Why |
 |-----------|--------------|----------------|-----|
 | **Challenge 1** (UART bypass) | Bus Pirate | Curious Bolt | BP for UART, Bolt for glitch |
-| **Challenge 2** (RDP bypass) | Curious Bolt | Faulty Cat | Voltage or EMFI glitch |
+| **Challenge 2** (RDP bypass) | Curious Bolt + ST-Link | Faulty Cat | Glitch with Bolt/FC, extract with ST-Link |
 | **Challenge 3** (Power analysis) | Curious Bolt | Bus Pirate | Bolt scope + BP for comms |
-| **Challenge 4** (Advanced) | Faulty Cat | Curious Bolt | EMFI or multi-glitch |
-| **Flash dump** (if needed) | Shikra | Bus Pirate | Speed vs. convenience |
+| **Challenge 4** (Advanced) | Faulty Cat + ST-Link | Curious Bolt | EMFI attack, ST-Link to verify/extract |
+| **Flash dump** (MCU internal) | ST-Link | - | REQUIRED for STM32 flash extraction |
+| **Flash dump** (external SPI) | Shikra | Bus Pirate | Speed vs. convenience |
 
 ---
 
@@ -210,7 +215,11 @@ flashrom -p ft2232_spi:type=232H
 ### 5. Additional Tools
 
 ```bash
-# OpenOCD for SWD/JTAG
+# ST-Link tools (REQUIRED for firmware extraction)
+brew install stlink  # macOS
+sudo apt install stlink-tools  # Linux
+
+# OpenOCD for advanced debugging
 brew install openocd  # macOS
 sudo apt install openocd  # Linux
 
@@ -243,8 +252,16 @@ SUBSYSTEM=="usb", ATTR{idVendor}=="0403", ATTR{idProduct}=="6014", MODE="0666"
 SUBSYSTEM=="usb", ATTR{idVendor}=="2341", MODE="0666"
 SUBSYSTEM=="usb", ATTR{idVendor}=="1b4f", MODE="0666"
 
-# ST-Link
+# ST-Link v2
 SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="3748", MODE="0666"
+
+# ST-Link v2-1 (on Nucleo boards)
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="374b", MODE="0666"
+
+# ST-Link v3
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="374d", MODE="0666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="374e", MODE="0666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="374f", MODE="0666"
 EOF
 
 sudo udevadm control --reload-rules
@@ -681,9 +698,9 @@ Bypass STM32F103 Read-Out Protection to extract flash memory containing the flag
 
 ### Tools Used
 - **Curious Bolt**: Precision voltage glitching during RDP check
-- **Shikra**: Fast flash dump once protection is bypassed
-- **Faulty Cat**: Alternative EMFI approach / SWD pin detection
-- **Bus Pirate**: Bootloader communication
+- **ST-Link v2**: **REQUIRED** - Only tool that can actually download firmware via SWD
+- **Faulty Cat**: Alternative EMFI approach / SWD pin detection (detection only, not debugging)
+- **Bus Pirate**: Bootloader communication (UART)
 
 ---
 
@@ -750,10 +767,19 @@ print(result)
 fc.close()
 ```
 
-#### Verify RDP with OpenOCD
+#### Verify RDP with ST-Link
+
+**IMPORTANT:** You need an ST-Link v2 debugger for this. Bus Pirate, Curious Bolt, and Faulty Cat cannot access SWD/JTAG for firmware extraction.
 
 ```bash
-# Try to connect - if RDP is enabled, this will fail/show protected
+# Method 1: Using st-flash directly
+st-info --probe
+# If RDP is enabled, this will show limited info or fail
+
+st-flash read test_dump.bin 0x08000000 0x100
+# If protected, will fail or read all 0xFF/0x00
+
+# Method 2: Using OpenOCD with ST-Link
 openocd -f interface/stlink.cfg -f target/stm32f1x.cfg \
     -c "init" \
     -c "flash info 0" \
@@ -775,13 +801,18 @@ openocd -f interface/stlink.cfg -f target/stm32f1x.cfg \
 │ RDP Bypass Wiring                                           │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  Curious Bolt          Target          SWD Programmer       │
-│  ────────────          ──────          ──────────────       │
+│  Curious Bolt          Target          ST-Link v2           │
+│  ────────────          ──────          ──────────           │
 │  GND           ─────── GND ──────────  GND                 │
 │  SIG (glitch)  ─────── VMCU                                │
 │  IO0           ─────── RST                                 │
 │                        SWDIO ─────────  SWDIO              │
 │                        SWCLK ─────────  SWCLK              │
+│                        3.3V  ─────────  3.3V (optional)    │
+│                                                             │
+│  Purpose:                                                   │
+│    Curious Bolt: Glitches the RDP check                    │
+│    ST-Link v2:   Reads flash once protection is bypassed   │
 │                                                             │
 │  Note: Remove/lift any decoupling capacitors near VMCU     │
 │  for better glitch effectiveness                            │
@@ -838,19 +869,31 @@ class RDPBypassAttack:
         # Wait for glitch and boot
         time.sleep(0.02)
     
-    def try_openocd_read(self, output_file='flash_dump.bin'):
+    def try_stlink_read(self, output_file='flash_dump.bin'):
         """
-        Attempt to read flash via OpenOCD
+        Attempt to read flash via ST-Link (st-flash command)
         Returns True if successful
+
+        Note: This requires ST-Link v2 hardware connected via SWD
         """
+        # Method 1: Try st-flash directly (faster)
         cmd = [
-            'openocd',
-            '-f', 'interface/stlink.cfg',
-            '-f', 'target/stm32f1x.cfg',
-            '-c', 'init',
-            '-c', f'flash read_image {output_file} 0x08000000 0x10000',
-            '-c', 'shutdown'
+            'st-flash',
+            'read',
+            output_file,
+            '0x08000000',
+            '0x10000'  # 64KB
         ]
+
+        # Alternatively, use OpenOCD if preferred:
+        # cmd = [
+        #     'openocd',
+        #     '-f', 'interface/stlink.cfg',
+        #     '-f', 'target/stm32f1x.cfg',
+        #     '-c', 'init',
+        #     '-c', f'flash read_bank 0 {output_file}',
+        #     '-c', 'shutdown'
+        # ]
         
         try:
             result = subprocess.run(
@@ -893,8 +936,8 @@ class RDPBypassAttack:
                 # Perform glitched reset
                 self.glitched_reset(offset, width)
                 
-                # Try to read flash
-                if self.try_openocd_read():
+                # Try to read flash using ST-Link
+                if self.try_stlink_read():
                     print(f"\n{'='*60}")
                     print(f"[SUCCESS!] RDP BYPASSED!")
                     print(f"Parameters: offset={offset}, width={width}")
@@ -1129,13 +1172,38 @@ if __name__ == '__main__':
 
 ---
 
-### Phase 4: Fast Flash Dump with Shikra
+### Phase 4: Flash Extraction After Successful Glitch
 
-Once RDP is bypassed, use Shikra for fast flash extraction (if there's external SPI flash):
+**IMPORTANT:** Once you've successfully glitched the RDP protection, you need ST-Link to extract the firmware.
+
+#### Method 1: ST-Link Direct Read (Fastest)
 
 ```bash
-# If target has external SPI flash, Shikra can dump it directly
-# (This bypasses the MCU entirely)
+# Read entire flash
+st-flash read firmware_dump.bin 0x08000000 0x10000
+
+# Verify it's not empty
+hexdump -C firmware_dump.bin | head -20
+
+# If you see actual code (not all 0xFF), success!
+```
+
+#### Method 2: OpenOCD with ST-Link
+
+```bash
+openocd -f interface/stlink.cfg -f target/stm32f1x.cfg \
+    -c "init" \
+    -c "reset halt" \
+    -c "flash read_bank 0 firmware_dump.bin" \
+    -c "shutdown"
+```
+
+#### Method 3: External SPI Flash (If Present)
+
+**Note:** This only works if the target has a separate external SPI flash chip. The STM32's internal flash can ONLY be read via SWD using ST-Link.
+
+```bash
+# If there's an external W25Q or MX25 flash chip on the board:
 
 # Wiring:
 # Shikra MOSI → Flash SI
@@ -1143,7 +1211,6 @@ Once RDP is bypassed, use Shikra for fast flash extraction (if there's external 
 # Shikra CLK  → Flash CLK
 # Shikra CS   → Flash CS#
 # Shikra GND  → GND
-# (Don't connect VCC - might conflict with target power)
 
 # Dump with flashrom
 flashrom -p ft2232_spi:type=232H -r external_flash.bin
@@ -2191,10 +2258,17 @@ For the most complex challenges:
 │   Bootloader RDP check: 15-20ms after command               │
 │                                                             │
 ├─────────────────────────────────────────────────────────────┤
+│ CRITICAL NOTES:                                             │
+│   ST-Link is REQUIRED for STM32 flash extraction            │
+│   Bus Pirate/Curious Bolt CANNOT do SWD/JTAG debugging      │
+│   Faulty Cat can DETECT pins but not USE them               │
+│   Shikra is for external SPI flash only, not MCU internal   │
+│                                                             │
 │ EMERGENCY COMMANDS:                                         │
 │   Reset Bus Pirate: '#' then enter                          │
-│   Shikra chip force: flashrom -c <chip_name>                │
-│   OpenOCD halt: telnet localhost 4444, then 'reset halt'    │
+│   ST-Link test: st-info --probe                             │
+│   Force chip: flashrom -c <chip_name>                       │
+│   OpenOCD halt: telnet localhost 4444, 'reset halt'         │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```

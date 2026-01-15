@@ -32,7 +32,35 @@ These guides aim to teach the **transferable pattern**, not just specific exploi
 |------|-------------|
 | [setup.md](setup.md) | Lab setup instructions |
 | [targets-guide.md](targets-guide.md) | Target selection guidance |
-| [CBECSC23.md](CBECSC23.md) | Additional reference material |
+| [CBECSC23.md](CBECSC23.md) | Hardware challenge walkthrough |
+
+---
+
+## Practice Platforms
+
+### Reverse Engineering & Crackme Challenges
+
+| Platform | Focus | Notes |
+|----------|-------|-------|
+| [crackmes.one](https://crackmes.one/) | RE challenges | Has an upcoming CTF competition starting February 2026 |
+| [challenges.re](https://challenges.re/) | RE exercises | From the author of "Reverse Engineering for Beginners" - no solutions provided |
+| [Nightmare](https://guyinatuxedo.github.io/index.html) | Binary exploitation/RE | 90+ challenges with detailed writeups, great linear progression |
+| [exploit.education](https://exploit.education/) | Binary exploitation | VMs for learning various security issues |
+| [ROP Emporium](https://ropemporium.com/) | Return-oriented programming | Focused specifically on ROP chains |
+| [CryptoHack](https://cryptohack.org/) | Cryptography | Fun crypto-specific challenges |
+| [CTFlearn](https://ctflearn.com/) | General CTF | Learn and compete |
+
+### Hardware Hacking & IoT Focused
+
+| Platform | Focus | Notes |
+|----------|-------|-------|
+| [Microcorruption](https://microcorruption.com/) | Embedded security | Browser-based debugger with MSP430 assembly - challenges you to bypass fictional embedded locks. Excellent intro without buying hardware. |
+| [DVRF](https://github.com/praetorian-inc/DVRF) | Router firmware | Damn Vulnerable Router Firmware - learn MIPS exploitation. Can run in QEMU if you don't have the E1550 hardware. |
+| [IoTGoat](https://github.com/OWASP/IoTGoat) | IoT firmware | Deliberately insecure firmware based on OpenWrt |
+| [Rhme (Riscure Hack Me)](https://github.com/Riscure/Rhme-2016) | Hardware CTF | Hardware CTF challenges from 2015-2018 |
+| [Hack The Box - Hardware](https://www.hackthebox.com/) | Hardware system hacking | Part of their broader CTF platform |
+| [Ph0wn CTF](https://ph0wn.org/) | Smart devices/IoT | Jeopardy-style CTF dedicated to IoT, embedded systems, smartphones - local event in France but archives available |
+| [IoT Village CTF (DEF CON)](https://www.iotvillage.org/) | Real IoT devices | DEF CON Black Badge awarded contest - exploits real-world vulnerabilities on actual devices (30+ devices) |
 
 ---
 
