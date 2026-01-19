@@ -1,0 +1,104 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hwh"
+version = "0.1.0"
+description = "Unified Hardware Hacking Tool - ST-Link, Bus Pirate, Tigard, Bolt, FaultyCat"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Your Name", email = "you@example.com"}
+]
+keywords = ["hardware", "hacking", "security", "spi", "i2c", "jtag", "swd", "glitching"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Hardware",
+]
+
+dependencies = [
+    "click>=8.0",
+    "pyserial>=3.5",
+]
+
+[project.optional-dependencies]
+# Core hardware libraries
+buspirate = [
+    "cobs>=1.2.0",
+]
+tigard = [
+    "pyftdi>=0.54",
+]
+stlink = [
+    "pyocd>=0.35",
+]
+blackmagic = [
+    "pygdbmi>=0.11",
+]
+usb = [
+    "pyusb>=1.2",
+]
+
+# TUI support
+tui = [
+    "textual>=0.40",
+]
+
+# Development shell
+shell = [
+    "ipython>=8.0",
+]
+
+# All hardware + extras
+all = [
+    "hwh[buspirate,tigard,stlink,blackmagic,usb,tui,shell]",
+]
+
+dev = [
+    "hwh[all]",
+    "pytest>=7.0",
+    "pytest-cov",
+    "ruff",
+    "mypy",
+]
+
+[project.scripts]
+hwh = "hwh.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/hwh"
+Repository = "https://github.com/yourusername/hwh"
+Issues = "https://github.com/yourusername/hwh/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hwh*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]  # Line length handled separately
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --cov=hwh"

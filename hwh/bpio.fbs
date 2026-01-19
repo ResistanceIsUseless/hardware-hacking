@@ -1,0 +1,146 @@
+// BPIO2 FlatBuffers Schema for Bus Pirate 5/6
+// Reverse-engineered from Bus Pirate 5 firmware C headers
+// Reference: https://github.com/DangerousPrototypes/BusPirate5-firmware
+
+namespace bpio;
+
+// Status request query types
+enum StatusRequestTypes : byte {
+    All = 0,
+    Version = 1,
+    Mode = 2,
+    Pullup = 3,
+    PSU = 4,
+    ADC = 5,
+    IO = 6,
+    Disk = 7,
+    LED = 8
+}
+
+// Status Request - query device status
+table StatusRequest {
+    query: [StatusRequestTypes];
+}
+
+// Status Response - device status information
+table StatusResponse {
+    error: string;
+    version_flatbuffers_major: ubyte;
+    version_flatbuffers_minor: uint16;
+    version_hardware_major: ubyte;
+    version_hardware_minor: ubyte;
+    version_firmware_major: ubyte;
+    version_firmware_minor: ubyte;
+    version_firmware_git_hash: string;
+    version_firmware_date: string;
+    modes_available: [string];
+    mode_current: string;
+    mode_pin_labels: [string];
+    mode_bitorder_msb: bool;
+    mode_max_packet_size: uint32;
+    mode_max_write: uint32;
+    mode_max_read: uint32;
+    psu_enabled: bool;
+    psu_set_mv: uint32;
+    psu_set_ma: uint32;
+    psu_measured_mv: uint32;
+    psu_measured_ma: uint32;
+    psu_current_error: bool;
+    pullup_enabled: bool;
+    adc_mv: [uint32];
+    io_direction: ubyte;
+    io_value: ubyte;
+    disk_size_mb: float;
+    disk_used_mb: float;
+    led_count: ubyte;
+}
+
+// Mode Configuration - protocol-specific settings
+table ModeConfiguration {
+    speed: uint32 = 20000;
+    data_bits: ubyte = 8;
+    parity: bool = false;
+    stop_bits: ubyte = 1;
+    flow_control: bool = false;
+    signal_inversion: bool = false;
+    clock_stretch: bool = false;
+    clock_polarity: bool = false;
+    clock_phase: bool = false;
+    chip_select_idle: bool = true;
+    submode: ubyte = 0;
+    tx_modulation: uint32 = 0;
+    rx_sensor: ubyte = 0;
+}
+
+// Configuration Request - change device/mode settings
+table ConfigurationRequest {
+    mode: string;
+    mode_configuration: ModeConfiguration;
+    mode_bitorder_msb: bool;
+    mode_bitorder_lsb: bool;
+    psu_disable: bool;
+    psu_enable: bool;
+    psu_set_mv: uint32;
+    psu_set_ma: uint16 = 300;
+    pullup_disable: bool;
+    pullup_enable: bool;
+    io_direction_mask: ubyte;
+    io_direction: ubyte;
+    io_value_mask: ubyte;
+    io_value: ubyte;
+    led_resume: bool;
+    led_color: [uint32];
+    print_string: string;
+    hardware_bootloader: bool;
+    hardware_reset: bool;
+    hardware_selftest: bool;
+}
+
+// Configuration Response
+table ConfigurationResponse {
+    error: string;
+}
+
+// Data Request - perform bus transaction
+table DataRequest {
+    start_main: bool;
+    start_alt: bool;
+    data_write: [ubyte];
+    bytes_read: uint16;
+    stop_main: bool;
+    stop_alt: bool;
+}
+
+// Data Response
+table DataResponse {
+    error: string;
+    data_read: [ubyte];
+}
+
+// Union of all request types
+union RequestPacketContents {
+    StatusRequest,
+    ConfigurationRequest,
+    DataRequest
+}
+
+// Union of all response types
+union ResponsePacketContents {
+    StatusResponse,
+    ConfigurationResponse,
+    DataResponse
+}
+
+// Request Packet - top-level request wrapper
+table RequestPacket {
+    sequence: uint16;
+    packet: RequestPacketContents;
+}
+
+// Response Packet - top-level response wrapper
+table ResponsePacket {
+    sequence: uint16;
+    packet: ResponsePacketContents;
+}
+
+root_type RequestPacket;
