@@ -36,6 +36,8 @@ dependencies = [
 # Core hardware libraries
 buspirate = [
     "cobs>=1.2.0",
+    "flatbuffers>=23.0.0",
+    "numpy>=1.20.0",
 ]
 tigard = [
     "pyftdi>=0.54",

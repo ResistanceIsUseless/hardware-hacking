@@ -25,22 +25,29 @@ class RequestPacket(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # RequestPacket
-    def Sequence(self):
+    def VersionMajor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Uint16Flags, o + self._tab.Pos)
-        return 0
-
-    # RequestPacket
-    def PacketType(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
         return 0
 
     # RequestPacket
-    def Packet(self):
+    def MinimumVersionMinor(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Uint16Flags, o + self._tab.Pos)
+        return 0
+
+    # RequestPacket
+    def ContentsType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
+        return 0
+
+    # RequestPacket
+    def Contents(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             from flatbuffers.table import Table
             obj = Table(bytearray(), 0)
@@ -49,28 +56,34 @@ class RequestPacket(object):
         return None
 
 def RequestPacketStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(4)
 
 def Start(builder):
     RequestPacketStart(builder)
 
-def RequestPacketAddSequence(builder, sequence):
-    builder.PrependUint16Slot(0, sequence, 0)
+def RequestPacketAddVersionMajor(builder, versionMajor):
+    builder.PrependUint8Slot(0, versionMajor, 0)
 
-def AddSequence(builder, sequence):
-    RequestPacketAddSequence(builder, sequence)
+def AddVersionMajor(builder, versionMajor):
+    RequestPacketAddVersionMajor(builder, versionMajor)
 
-def RequestPacketAddPacketType(builder, packetType):
-    builder.PrependUint8Slot(1, packetType, 0)
+def RequestPacketAddMinimumVersionMinor(builder, minimumVersionMinor):
+    builder.PrependUint16Slot(1, minimumVersionMinor, 0)
 
-def AddPacketType(builder, packetType):
-    RequestPacketAddPacketType(builder, packetType)
+def AddMinimumVersionMinor(builder, minimumVersionMinor):
+    RequestPacketAddMinimumVersionMinor(builder, minimumVersionMinor)
 
-def RequestPacketAddPacket(builder, packet):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(packet), 0)
+def RequestPacketAddContentsType(builder, contentsType):
+    builder.PrependUint8Slot(2, contentsType, 0)
 
-def AddPacket(builder, packet):
-    RequestPacketAddPacket(builder, packet)
+def AddContentsType(builder, contentsType):
+    RequestPacketAddContentsType(builder, contentsType)
+
+def RequestPacketAddContents(builder, contents):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(contents), 0)
+
+def AddContents(builder, contents):
+    RequestPacketAddContents(builder, contents)
 
 def RequestPacketEnd(builder):
     return builder.EndObject()

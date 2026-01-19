@@ -25,21 +25,21 @@ class ResponsePacket(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # ResponsePacket
-    def Sequence(self):
+    def Error(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Uint16Flags, o + self._tab.Pos)
-        return 0
+            return self._tab.String(o + self._tab.Pos)
+        return None
 
     # ResponsePacket
-    def PacketType(self):
+    def ContentsType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
         return 0
 
     # ResponsePacket
-    def Packet(self):
+    def Contents(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             from flatbuffers.table import Table
@@ -54,23 +54,23 @@ def ResponsePacketStart(builder):
 def Start(builder):
     ResponsePacketStart(builder)
 
-def ResponsePacketAddSequence(builder, sequence):
-    builder.PrependUint16Slot(0, sequence, 0)
+def ResponsePacketAddError(builder, error):
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(error), 0)
 
-def AddSequence(builder, sequence):
-    ResponsePacketAddSequence(builder, sequence)
+def AddError(builder, error):
+    ResponsePacketAddError(builder, error)
 
-def ResponsePacketAddPacketType(builder, packetType):
-    builder.PrependUint8Slot(1, packetType, 0)
+def ResponsePacketAddContentsType(builder, contentsType):
+    builder.PrependUint8Slot(1, contentsType, 0)
 
-def AddPacketType(builder, packetType):
-    ResponsePacketAddPacketType(builder, packetType)
+def AddContentsType(builder, contentsType):
+    ResponsePacketAddContentsType(builder, contentsType)
 
-def ResponsePacketAddPacket(builder, packet):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(packet), 0)
+def ResponsePacketAddContents(builder, contents):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(contents), 0)
 
-def AddPacket(builder, packet):
-    ResponsePacketAddPacket(builder, packet)
+def AddContents(builder, contents):
+    ResponsePacketAddContents(builder, contents)
 
 def ResponsePacketEnd(builder):
     return builder.EndObject()
