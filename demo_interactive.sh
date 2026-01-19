@@ -1,0 +1,35 @@
+#!/bin/bash
+# Demo script for interactive hardware hacking tool
+
+echo "==================================="
+echo "Interactive Hardware Hacking Tool"
+echo "==================================="
+echo ""
+echo "This tool provides an intelligent menu system for hardware devices."
+echo ""
+echo "Features:"
+echo "  - Auto-detects all connected USB hardware"
+echo "  - Context-aware menus based on device type"
+echo "  - Guided configuration for protocols (SPI, I2C, UART)"
+echo "  - Automated target scanning"
+echo "  - Built on the unified hwh backend"
+echo ""
+echo "To run:"
+echo "  ~/.pyenv/versions/3.12.10/bin/python3 -m hwh.interactive"
+echo ""
+echo "Example workflow:"
+echo "  1. Tool detects Bus Pirate, Bolt, Bolt CTF"
+echo "  2. User selects Bus Pirate"
+echo "  3. Menu shows: SPI, I2C, UART, Scan target, PSU control"
+echo "  4. User selects 'Scan target'"
+echo "  5. Tool automatically:"
+echo "     - Powers the target (3.3V)"
+echo "     - Scans I2C bus"
+echo "     - Tests for SPI flash"
+echo "     - Shows pin voltages and current draw"
+echo "  6. Based on results, suggests next steps"
+echo ""
+echo "Press Enter to launch interactive mode..."
+read
+
+exec ~/.pyenv/versions/3.12.10/bin/python3 -m hwh.interactive

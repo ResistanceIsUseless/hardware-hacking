@@ -56,6 +56,9 @@ KNOWN_USB_DEVICES = {
     # Note: Same VID:PID, requires runtime identification via serial probing
     (0x2E8A, 0x000A): ("RP2040 Device", "rp2040_unknown", ["unknown"]),
     (0x2E8A, 0x0003): ("RP2040 Device (alt)", "rp2040_unknown", ["unknown"]),
+
+    # Curious Bolt (voltage glitching, logic analyzer, power analysis)
+    (0xCAFE, 0x4002): ("Curious Bolt", "bolt", ["voltage_glitch", "logic_analyzer", "power_analysis"]),
 }
 
 # Serial port patterns for fallback detection

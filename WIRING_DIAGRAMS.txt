@@ -1,0 +1,204 @@
+# Visual Wiring Diagrams
+
+## Scenario 1: Bus Pirate → Bolt CTF (I2C)
+
+```
+    Bus Pirate 6                      Bolt CTF (STM32)
+   ┌─────────────┐                    ┌──────────────┐
+   │             │                    │              │
+   │  Pin 1 (SDA)├────────────────────┤ SDA (PB7/9)  │
+   │  Pin 2 (SCL)├────────────────────┤ SCL (PB6/8)  │
+   │  Pin 9 (GND)├────────────────────┤ GND          │
+   │  PSU (3.3V) ├────────────────────┤ VCC/3V3      │
+   │             │                    │              │
+   └─────────────┘                    └──────────────┘
+
+   Enable pull-ups: bp.set_pullups(enabled=True)
+   Current status: SDA stuck LOW (needs SWD programming)
+```
+
+## Scenario 2: Bus Pirate → Bolt CTF (UART)
+
+```
+    Bus Pirate 6                      Bolt CTF (STM32)
+   ┌─────────────┐                    ┌──────────────┐
+   │             │                    │              │
+   │  Pin 3 (TX) ├───────┐    ┌───────┤ RX (PA10)    │
+   │             │       │    │       │              │
+   │  Pin 5 (RX) ├───────┼────┼───────┤ TX (PA9)     │
+   │             │       │    │       │              │
+   │  Pin 9 (GND)├───────┼────┼───────┤ GND          │
+   │  PSU (3.3V) ├───────┘    └───────┤ VCC/3V3      │
+   │             │                    │              │
+   └─────────────┘                    └──────────────┘
+
+   Note: TX → RX crossover (X pattern)
+   Status: Firmware doesn't support UART mode yet
+```
+
+## Scenario 3: Bus Pirate → Bolt CTF (SPI)
+
+```
+    Bus Pirate 6                      Bolt CTF (STM32)
+   ┌─────────────┐                    ┌──────────────┐
+   │             │                    │              │
+   │ Pin 5 (MISO)├────────────────────┤ MISO (PA6)   │
+   │ Pin 6 (CS)  ├────────────────────┤ NSS (PA4)    │
+   │ Pin 7 (CLK) ├────────────────────┤ SCK (PA5)    │
+   │ Pin 8 (MOSI)├────────────────────┤ MOSI (PA7)   │
+   │ Pin 9 (GND) ├────────────────────┤ GND          │
+   │ PSU (3.3V)  ├────────────────────┤ VCC/3V3      │
+   │             │                    │              │
+   └─────────────┘                    └──────────────┘
+
+   Status: Working, but no flash detected on target
+```
+
+## Scenario 4: ST-Link → Bolt CTF (SWD Programming)
+
+```
+      ST-Link V2/V3                   Bolt CTF (STM32)
+   ┌─────────────────┐                ┌──────────────┐
+   │                 │                │              │
+   │  SWDIO          ├────────────────┤ SWDIO        │
+   │  SWCLK          ├────────────────┤ SWCLK        │
+   │  GND            ├────────────────┤ GND          │
+   │  3.3V           ├────────────────┤ VCC/3V3      │
+   │  NRST (optional)├────────────────┤ NRST         │
+   │                 │                │              │
+   └─────────────────┘                └──────────────┘
+
+   Use this to program Bolt CTF and fix I2C issues
+   Tools: openocd, st-flash, STM32CubeProgrammer
+```
+
+## Scenario 5: Curious Bolt → Bolt CTF (Glitching)
+
+```
+     Curious Bolt                     Bolt CTF (STM32)
+   ┌───────────────┐                  ┌──────────────┐
+   │               │                  │              │
+   │  GLITCH_OUT   ├──────────────────┤ VCC rail     │
+   │               │  (insert between │              │
+   │  TRIGGER_IN   ├──────────────────┤ GPIO trigger │
+   │  GND          ├──────────────────┤ GND          │
+   │               │                  │              │
+   │  CH0 (Logic)  ├──────────────────┤ UART TX      │
+   │  CH1 (Logic)  ├──────────────────┤ UART RX      │
+   │  CH2 (Logic)  ├──────────────────┤ Any signal   │
+   │               │                  │              │
+   └───────────────┘                  └──────────────┘
+
+   Status: Backend pending implementation
+```
+
+## Scenario 6: Full Multi-Device Setup
+
+```
+                                      Bolt CTF (STM32)
+                                     ┌──────────────────┐
+                                     │                  │
+   Bus Pirate 6                      │  I2C: SDA, SCL   │
+   ┌─────────────┐                   │  SPI: MOSI,MISO  │
+   │             │                   │       CLK, CS    │
+   │  I2C/SPI    ├───────────────────┤  UART: TX, RX    │
+   │  PSU (3.3V) │                   │  VCC, GND        │
+   │             │                   │                  │
+   └─────────────┘                   └──────────────────┘
+                                              │
+                                              │
+   Curious Bolt                               │
+   ┌───────────────┐                          │
+   │               │                          │
+   │  GLITCH_OUT   ├──────────────────────────┤ VCC
+   │  TRIGGER_IN   ├──────────────────────────┤ GPIO
+   │  Logic Anlz   ├──────────────────────────┤ Signals
+   │               │                          │
+   └───────────────┘                          │
+                                              │
+   ST-Link (for programming)                  │
+   ┌─────────────────┐                        │
+   │                 │                        │
+   │  SWDIO, SWCLK   ├────────────────────────┤ SWD
+   │                 │                        │
+   └─────────────────┘                        │
+                                              │
+   CTF Badge (output only)                    │
+   /dev/cu.usbserial-110                      │
+   Transmits: "Hold one of the 4             │
+   challenge buttons to start them"           │
+```
+
+## Current Working Setup (Based on Tests)
+
+```
+Your Current Wiring:
+───────────────────────────────────────────────
+
+    Bus Pirate 6
+   ┌─────────────┐
+   │ Pin 1 (SDA) ├──────┐       ⚠️  SDA stuck at 19mV (LOW)
+   │ Pin 2 (SCL) ├──────┤       ✅ SCL working at 3272mV (HIGH)
+   │ Pin 9 (GND) ├──────┤       ✅ Power: 3.3V @ 15-24mA
+   │ PSU (3.3V)  ├──────┘       ✅ Bolt CTF is powered and running
+   └─────────────┘
+
+Connected to: Bolt CTF
+Problem: I2C SDA pulled LOW by unprogrammed STM32
+Solution: Program via SWD first, or try UART/SPI
+
+Also Connected:
+- Curious Bolt on /dev/cu.usbmodem2103 (VID:PID cafe:4002)
+- CTF Badge on /dev/cu.usbserial-110 (transmitting challenge prompt)
+```
+
+## Pin Voltage Reference
+
+```
+Expected Voltages (3.3V Logic):
+
+HIGH:  2.4V - 3.3V   ✅
+LOW:   0V - 0.8V     ✅
+FLOAT: ~1.5V         ⚠️  (may indicate disconnected or high-Z)
+
+Your Current Readings (SPI Mode):
+  OFF:  4824mV  [Power rail sense]
+  MISO: 1973mV  [Intermediate - check connection]
+  CS:     20mV  [LOW - correct for inactive CS]
+  CLK:    20mV  [LOW - correct for idle]
+
+Your I2C Readings:
+  SDA:    19mV  [ERROR: Should be 3.3V with pull-ups]
+  SCL:  3272mV  [OK: Correct HIGH level]
+```
+
+## Testing Your Wiring
+
+Run this to see current status:
+
+```python
+from hwh import detect, get_backend
+
+bp = get_backend(list(detect().values())[0])
+with bp:
+    # Check what's connected
+    results = bp.scan_target()
+
+    print("Pin Voltages:")
+    for pin, voltage in results['pin_voltages'].items():
+        if pin:
+            status = "HIGH" if voltage > 2000 else "LOW"
+            print(f"  {pin:8s}: {voltage:4d}mV  [{status}]")
+
+    print(f"\nTarget current: {results['psu']['measured_current_ma']}mA")
+```
+
+Expected output if wired correctly:
+- Current draw: 15-30mA (device is running)
+- SDA, SCL: Both HIGH (2400-3300mV) if working
+- GND: 0-50mV
+
+If SDA is LOW:
+- Target is pulling it low (needs programming)
+- Try UART or SPI instead
+- Or program via SWD first

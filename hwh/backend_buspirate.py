@@ -19,6 +19,7 @@ from .detect import DeviceInfo
 from .pybpio.bpio_client import BPIOClient
 from .pybpio.bpio_spi import BPIOSPI
 from .pybpio.bpio_i2c import BPIOI2C
+from .pybpio.bpio_uart import BPIOUART
 
 
 class BusPirateBackend(BusBackend):
@@ -37,6 +38,7 @@ class BusPirateBackend(BusBackend):
         self._client = None
         self._spi = None
         self._i2c = None
+        self._uart = None
         self._current_mode = None
 
     def _enter_binary_mode(self, console_port: str) -> bool:
@@ -353,48 +355,164 @@ class BusPirateBackend(BusBackend):
         if not self._connected or not self._client:
             return False
 
-        # UART configuration via client
-        # Note: Official library doesn't have BPIOUART wrapper yet,
-        # so we use direct configuration
-        mode_config = {
-            'speed': config.baudrate,
-            'data_bits': config.data_bits,
-            'stop_bits': config.stop_bits,
-        }
+        # Create UART wrapper if needed
+        if not self._uart:
+            self._uart = BPIOUART(self._client)
 
-        # Map parity
-        if config.parity == 'E':
-            mode_config['parity'] = 1  # Even
-        elif config.parity == 'O':
-            mode_config['parity'] = 2  # Odd
-        else:
-            mode_config['parity'] = 0  # None
+        # Map parity to boolean (UART uses boolean: True=even, False=none)
+        parity = False
+        if config.parity in ('E', 'O'):
+            parity = True
 
-        success = self._client.configuration_request(
-            mode='UART',
-            mode_configuration=mode_config
+        success = self._uart.configure(
+            speed=config.baudrate,
+            data_bits=config.data_bits,
+            parity=parity,
+            stop_bits=config.stop_bits,
+            flow_control=False,
+            signal_inversion=False
         )
 
         if success:
             self._current_mode = "UART"
-            print(f"[BusPirate] UART configured: {config.baudrate} baud")
+            print(f"[BusPirate] UART configured: {config.baudrate} baud, {config.data_bits}{config.parity}{config.stop_bits}")
 
         return success
 
     def uart_write(self, data: bytes):
         """Write data to UART."""
-        if not self._connected or not self._client:
+        if not self._uart:
             return
 
-        self._client.data_request(data_write=data)
+        self._uart.write(list(data))
 
     def uart_read(self, length: int, timeout_ms: int = 1000) -> bytes:
         """Read data from UART."""
-        if not self._connected or not self._client:
+        if not self._uart:
             return b''
 
-        result = self._client.data_request(bytes_read=length)
+        result = self._uart.read(length)
         return result if result else b''
+
+    # --------------------------------------------------------------------------
+    # Target Device Scanning
+    # --------------------------------------------------------------------------
+
+    def scan_target(self, power_voltage_mv: int = 3300, power_current_ma: int = 300,
+                    enable_pullups: bool = True) -> dict[str, Any]:
+        """
+        Power up and scan a target device for all available interfaces.
+
+        This is a general-purpose function that:
+        1. Enables PSU to power the target
+        2. Scans I2C bus for devices
+        3. Tests SPI for flash chips
+        4. Reads pin voltages and IO states
+
+        Args:
+            power_voltage_mv: PSU voltage in millivolts (default: 3.3V)
+            power_current_ma: PSU current limit in milliamps (default: 300mA)
+            enable_pullups: Enable pull-up resistors for I2C (default: True)
+
+        Returns:
+            Dictionary with scan results:
+            {
+                'psu': {'enabled': bool, 'voltage_mv': int, 'current_ma': int},
+                'i2c_devices': [list of 7-bit addresses],
+                'spi_flash': {'detected': bool, 'id': bytes, 'manufacturer': int},
+                'pin_voltages': {pin_name: voltage_mv},
+                'io_status': {pin_name: {'direction': str, 'value': str}}
+            }
+        """
+        import time
+
+        if not self._connected or not self._client:
+            return {'error': 'Not connected'}
+
+        results = {}
+
+        # 1. Enable PSU
+        print(f"[Scan] Enabling PSU: {power_voltage_mv}mV, {power_current_ma}mA limit...")
+        self.set_psu(enabled=True, voltage_mv=power_voltage_mv, current_ma=power_current_ma)
+        time.sleep(0.5)  # Give target time to power up
+
+        # Get PSU status
+        info = self.get_info()
+        psu_info = {
+            'enabled': info.get('psu_enabled', False),
+            'set_voltage_mv': info.get('psu_set_mv', 0),
+            'measured_voltage_mv': info.get('psu_measured_mv', 0),
+            'measured_current_ma': info.get('psu_measured_ma', 0),
+            'over_current': info.get('psu_current_error', False)
+        }
+        results['psu'] = psu_info
+
+        print(f"[Scan] PSU: {psu_info['measured_voltage_mv']}mV, {psu_info['measured_current_ma']}mA")
+        if psu_info['over_current']:
+            print("[Scan] ⚠️  PSU over-current detected!")
+
+        # Wait for target to boot
+        time.sleep(1)
+
+        # 2. Scan I2C
+        print(f"[Scan] Scanning I2C bus...")
+        if enable_pullups:
+            self.set_pullups(enabled=True)
+
+        self.configure_i2c(I2CConfig(speed_hz=100_000))  # 100kHz standard mode
+        i2c_devices = self.i2c_scan(start_addr=0x08, end_addr=0x77)
+        results['i2c_devices'] = i2c_devices
+
+        if i2c_devices:
+            print(f"[Scan] Found {len(i2c_devices)} I2C device(s): {[hex(a) for a in i2c_devices]}")
+        else:
+            print(f"[Scan] No I2C devices found")
+
+        # 3. Test SPI
+        print(f"[Scan] Testing SPI interface...")
+        self.configure_spi(SPIConfig(speed_hz=1_000_000, mode=0))
+        flash_id = self.spi_flash_read_id()
+
+        spi_detected = flash_id and flash_id != b'\x00\x00\x00' and flash_id != b'\xff\xff\xff'
+        results['spi_flash'] = {
+            'detected': spi_detected,
+            'id': flash_id.hex() if flash_id else None,
+            'manufacturer': flash_id[0] if flash_id and len(flash_id) > 0 else None,
+            'device': flash_id[1:3].hex() if flash_id and len(flash_id) >= 3 else None
+        }
+
+        if spi_detected:
+            print(f"[Scan] SPI flash detected: {flash_id.hex()}")
+        else:
+            print(f"[Scan] No SPI flash detected")
+
+        # 4. Read pin voltages
+        info = self.get_info()
+        if 'adc_mv' in info and info['adc_mv']:
+            pin_voltages = {}
+            pin_labels = info.get('mode_pin_labels', [])
+
+            # Map pin labels to voltages
+            for i, label in enumerate(pin_labels):
+                if i < len(info['adc_mv']):
+                    pin_voltages[label] = info['adc_mv'][i]
+
+            results['pin_voltages'] = pin_voltages
+            print(f"[Scan] Pin voltages captured: {len(pin_voltages)} pins")
+
+        # 5. IO status
+        io_status = {}
+        io_dir = info.get('io_direction', 0)
+        io_val = info.get('io_value', 0)
+
+        for i in range(8):
+            direction = 'OUT' if (io_dir >> i) & 1 else 'IN'
+            value = 'HIGH' if (io_val >> i) & 1 else 'LOW'
+            io_status[f'IO{i}'] = {'direction': direction, 'value': value}
+
+        results['io_status'] = io_status
+
+        return results
 
     # --------------------------------------------------------------------------
     # PSU Control (Bus Pirate specific)
