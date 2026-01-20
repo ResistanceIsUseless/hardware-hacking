@@ -156,8 +156,8 @@ python3 hwh/examples/01_device_discovery.py
 - **Main README**: [hwh/README.md](hwh/README.md) - Complete toolkit documentation
 - **Examples Guide**: [hwh/examples/README.md](hwh/examples/README.md) - Example usage
 - **Glitch Profiles**: [hwh/GLITCH_PROFILES_GUIDE.md](hwh/GLITCH_PROFILES_GUIDE.md) - Profile database
-- **Hardware Setup**: [setup.md](setup.md) - Lab hardware setup
-- **Target Guide**: [targets-guide.md](targets-guide.md) - Choosing practice devices
+- **Hardware Setup**: [docs/guides/setup.md](docs/guides/setup.md) - Lab hardware setup
+- **Target Guide**: [docs/guides/targets-guide.md](docs/guides/targets-guide.md) - Choosing practice devices
 
 ### Try Real Attacks
 

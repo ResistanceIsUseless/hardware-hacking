@@ -554,8 +554,9 @@ python3 examples/03_stm32_rdp_bypass.py
 
 ## Documentation
 
-- **Setup Guide**: [setup.md](../setup.md) - Hardware lab setup
-- **Target Selection**: [targets-guide.md](../targets-guide.md) - Choosing practice devices
+- **Quick Start**: [QUICKSTART.md](../QUICKSTART.md) - 5-minute getting started guide
+- **Setup Guide**: [docs/guides/setup.md](../docs/guides/setup.md) - Hardware lab setup
+- **Target Selection**: [docs/guides/targets-guide.md](../docs/guides/targets-guide.md) - Choosing practice devices
 - **Glitch Profiles**: [GLITCH_PROFILES_GUIDE.md](GLITCH_PROFILES_GUIDE.md) - Profile database usage
 - **Phase 1 Summary**: [PHASE1_IMPLEMENTATION.md](PHASE1_IMPLEMENTATION.md) - Implementation details
 - **Attack Patterns**: [attack-patterns/](../attack-patterns/) - Vulnerability patterns

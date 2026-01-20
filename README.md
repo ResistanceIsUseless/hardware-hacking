@@ -6,14 +6,14 @@ This repository combines **attack pattern education** with **practical hardware 
 
 ```
 hardware-hacking/
-├── attack-patterns/        # 11 vulnerability pattern guides
-├── docs/                  # Additional documentation
-│   ├── bolt-ctf/         # Curious Bolt CTF challenges
-│   └── tools/            # Tool implementation docs
-├── hwh/                   # Python CLI tool for hardware hacking
-├── setup.md              # Hardware lab setup guide
-├── targets-guide.md      # Target device selection
-└── CBECSC23.md          # ECSC23 CTF walkthrough
+├── attack-patterns/          # 11 vulnerability pattern guides
+├── docs/
+│   ├── bolt-ctf/            # Curious Bolt CTF challenges (including CBECSC23.md)
+│   ├── guides/              # Setup and target selection guides
+│   └── tools/               # Tool implementation docs
+├── hwh/                     # Python toolkit for hardware hacking
+├── QUICKSTART.md            # 5-minute quick start guide
+└── README.md                # This file
 ```
 
 ## Quick Links
@@ -38,7 +38,7 @@ Understand the fundamental patterns behind common vulnerabilities. Each guide te
 **[View all patterns →](attack-patterns/)**
 
 ### Hardware Security
-**[🔧 setup.md](setup.md)** - Complete hardware lab setup (~$590 kit)
+**[🔧 docs/guides/setup.md](docs/guides/setup.md)** - Complete hardware lab setup (~$590 kit)
 
 Set up a professional hardware hacking lab with:
 - Bus Pirate v5/v6, GreatFET One, Curious Bolt, Faulty Cat, Tigard, ST-Link
@@ -46,7 +46,7 @@ Set up a professional hardware hacking lab with:
 - AI-assisted reverse engineering (GhidraMCP)
 - Full setup for macOS (M-series) and ARM Linux
 
-**[🎯 targets-guide.md](targets-guide.md)** - What to practice on
+**[🎯 docs/guides/targets-guide.md](docs/guides/targets-guide.md)** - What to practice on
 
 Safe, legal targets for learning:
 - IoT devices to buy (~$30-100 each)
@@ -54,7 +54,7 @@ Safe, legal targets for learning:
 - Legal considerations & responsible disclosure
 - Day-by-day practice plans
 
-**[🏆 CBECSC23.md](CBECSC23.md)** - Hardware CTF walkthrough
+**[🏆 docs/bolt-ctf/CBECSC23.md](docs/bolt-ctf/CBECSC23.md)** - Hardware CTF walkthrough
 
 Multi-tool approach to the ECSC23 hardware challenges (STM32F103 target board):
 - **Challenge 1**: UART bypass via voltage glitching
