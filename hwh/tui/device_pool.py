@@ -405,6 +405,27 @@ class DevicePool:
             }
         }
 
+    def display_status(self):
+        """Display formatted status of the device pool."""
+        status = self.get_status()
+
+        print(f"Total devices: {status['total_devices']}")
+        print(f"Connected: {status['connected']}")
+        print(f"Active: {status['active']}")
+        if status['primary_device']:
+            print(f"Primary: {status['primary_device']}")
+        print()
+
+        for device_id, info in status['devices'].items():
+            status_icon = "✓" if info['connected'] else "✗"
+            active_marker = " [ACTIVE]" if info['active'] else ""
+            print(f"{status_icon} {device_id} ({info['type']}) - {info['role']}{active_marker}")
+            print(f"    Port: {self.devices[device_id].device_info.port}")
+            print(f"    Capabilities: {', '.join(info['capabilities'])}")
+            if info['errors'] > 0:
+                print(f"    Errors: {info['errors']}")
+            print()
+
     async def coordinate(self, workflow_func: Callable, device_roles: Dict[DeviceRole, str]):
         """
         Coordinate a multi-device workflow.
