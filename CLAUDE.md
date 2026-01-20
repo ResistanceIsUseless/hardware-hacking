@@ -25,17 +25,17 @@ This repository is for **authorized security testing, defensive security, CTF ch
 
 Each guide follows a consistent structure teaching the **transferable pattern** behind vulnerability classes:
 
-- [memory-disclosure.md](memory-disclosure.md) - Length field attacks, buffer overreads (Heartbleed, Wallbleed patterns)
-- [parser-differential.md](parser-differential.md) - Two systems interpret input differently
-- [deserialization.md](deserialization.md) - Untrusted data → live objects
-- [type-confusion.md](type-confusion.md) - Incompatible type access
-- [toctou.md](toctou.md) - Time-of-check to time-of-use races
-- [canonicalization.md](canonicalization.md) - Data transforms after security checks
-- [gadget-chains.md](gadget-chains.md) - Chaining existing code for execution
-- [state-confusion.md](state-confusion.md) - Out-of-order state machine operations
-- [truncation.md](truncation.md) - Data shortened, meaning changed
-- [reference-confusion.md](reference-confusion.md) - Resource identity/ownership confusion
-- [semantic-gap.md](semantic-gap.md) - Layer interpretation differences
+- [attack-patterns/memory-disclosure.md](attack-patterns/memory-disclosure.md) - Length field attacks, buffer overreads (Heartbleed, Wallbleed patterns)
+- [attack-patterns/parser-differential.md](attack-patterns/parser-differential.md) - Two systems interpret input differently
+- [attack-patterns/deserialization.md](attack-patterns/deserialization.md) - Untrusted data → live objects
+- [attack-patterns/type-confusion.md](attack-patterns/type-confusion.md) - Incompatible type access
+- [attack-patterns/toctou.md](attack-patterns/toctou.md) - Time-of-check to time-of-use races
+- [attack-patterns/canonicalization.md](attack-patterns/canonicalization.md) - Data transforms after security checks
+- [attack-patterns/gadget-chains.md](attack-patterns/gadget-chains.md) - Chaining existing code for execution
+- [attack-patterns/state-confusion.md](attack-patterns/state-confusion.md) - Out-of-order state machine operations
+- [attack-patterns/truncation.md](attack-patterns/truncation.md) - Data shortened, meaning changed
+- [attack-patterns/reference-confusion.md](attack-patterns/reference-confusion.md) - Resource identity/ownership confusion
+- [attack-patterns/semantic-gap.md](attack-patterns/semantic-gap.md) - Layer interpretation differences
 
 ### Hardware Hacking Resources
 
