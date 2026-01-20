@@ -33,36 +33,57 @@ A unified interface for hardware security tools with multi-device coordination, 
 
 ```bash
 git clone https://github.com/yourusername/hardware-hacking
-cd hardware-hacking/hwh
+cd hardware-hacking
 
 # Install package
-pip install -e .
+cd hwh && pip install -e . && cd ..
 
 # Install optional dependencies for full functionality
 pip install cobs flatbuffers textual
 ```
 
-### Verify Installation
+### Usage
+
+Run from the **hardware-hacking** directory (parent of hwh/):
 
 ```bash
-# Check that devices are detected
-python3 -c "from hwh.detect import detect; devices = detect(); print(f'Found {len(devices)} device(s)')"
-```
+cd hardware-hacking
 
-If you see your connected hardware listed, you're ready to go!
+# Detect connected devices
+python -m hwh detect
+
+# Terminal UI (interactive)
+python -m hwh tui
+
+# Interactive Python shell
+python -m hwh shell
+```
 
 ## Quick Start
 
 ### 1. Detect Connected Devices
 
 ```bash
-python3 -c "
+cd hardware-hacking
+python -m hwh detect
+```
+
+Expected output:
+```
+Name                      Type            Port                 VID:PID      Capabilities
+------------------------------------------------------------------------------------------
+Curious Bolt              bolt            /dev/cu.usbmodem11401 cafe:4002    voltage_glitch, logic_analyzer, power_analysis
+Bus Pirate 5/6            buspirate       /dev/cu.usbmodem...   1209:7331    spi, i2c, uart, 1wire, jtag, psu
+```
+
+Or use the Python API:
+
+```python
 from hwh.detect import detect
 devices = detect(identify_unknown=True)
 for dev_id, info in devices.items():
     print(f'{dev_id}: {info.device_type} on {info.port}')
     print(f'  Capabilities: {info.capabilities}')
-"
 ```
 
 Expected output:
