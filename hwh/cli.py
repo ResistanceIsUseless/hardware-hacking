@@ -400,6 +400,170 @@ def glitch_sweep(device, width_min, width_max, width_step,
 
 
 # --------------------------------------------------------------------------
+# Glitch Commands
+# --------------------------------------------------------------------------
+
+@cli.group()
+def glitch():
+    """Voltage glitching operations."""
+    pass
+
+
+@glitch.command('single')
+@click.option('-d', '--device', help='Device type (bolt, faultycat)')
+@click.option('-w', '--width', type=float, default=350.0, help='Glitch width in nanoseconds')
+@click.option('-o', '--offset', type=float, default=0.0, help='Trigger offset in nanoseconds')
+def glitch_single(device, width, offset):
+    """Trigger a single glitch."""
+    devices = detect()
+
+    # Find glitch-capable device
+    if device:
+        dev_info = devices.get(device)
+    else:
+        for key, dev in devices.items():
+            if 'voltage_glitch' in dev.capabilities:
+                dev_info = dev
+                break
+        else:
+            click.echo("No glitching device found!", err=True)
+            return 1
+
+    if not dev_info:
+        click.echo(f"Device '{device}' not found!", err=True)
+        return 1
+
+    backend = get_backend(dev_info)
+
+    with backend:
+        cfg = GlitchConfig(width_ns=width, offset_ns=offset)
+        backend.configure_glitch(cfg)
+
+        click.echo(f"Triggering glitch: {width:.0f}ns width, {offset:.0f}ns offset")
+        backend.trigger()
+        click.echo("✓ Glitch sent")
+
+
+@glitch.command('sweep')
+@click.option('-d', '--device', help='Device type (bolt, faultycat)')
+@click.option('--width-min', type=float, default=50.0, help='Minimum glitch width (ns)')
+@click.option('--width-max', type=float, default=1000.0, help='Maximum glitch width (ns)')
+@click.option('--width-step', type=float, default=50.0, help='Width increment (ns)')
+@click.option('--offset-min', type=float, default=0.0, help='Minimum offset (ns)')
+@click.option('--offset-max', type=float, default=1000.0, help='Maximum offset (ns)')
+@click.option('--offset-step', type=float, default=100.0, help='Offset increment (ns)')
+@click.option('--delay', type=float, default=0.01, help='Delay between glitches (seconds)')
+def glitch_sweep(device, width_min, width_max, width_step,
+                 offset_min, offset_max, offset_step, delay):
+    """Sweep glitch parameters."""
+    import time
+
+    devices = detect()
+
+    # Find glitch-capable device
+    if device:
+        dev_info = devices.get(device)
+    else:
+        for key, dev in devices.items():
+            if 'voltage_glitch' in dev.capabilities:
+                dev_info = dev
+                break
+        else:
+            click.echo("No glitching device found!", err=True)
+            return 1
+
+    backend = get_backend(dev_info)
+
+    with backend:
+        click.echo(f"Parameter sweep:")
+        click.echo(f"  Width: {width_min}-{width_max}ns (step {width_step}ns)")
+        click.echo(f"  Offset: {offset_min}-{offset_max}ns (step {offset_step}ns)")
+        click.echo(f"  Delay: {delay}s between glitches")
+        click.echo()
+
+        width = width_min
+        total = 0
+
+        while width <= width_max:
+            offset = offset_min
+
+            while offset <= offset_max:
+                cfg = GlitchConfig(width_ns=width, offset_ns=offset)
+                backend.configure_glitch(cfg)
+                backend.trigger()
+
+                total += 1
+                click.echo(f"[{total:4d}] width={width:5.0f}ns offset={offset:5.0f}ns", nl=False)
+                click.echo('\r', nl=False)  # Overwrite same line
+
+                time.sleep(delay)
+                offset += offset_step
+
+            width += width_step
+
+        click.echo(f"\n✓ Sweep complete: {total} glitches sent")
+
+
+@glitch.command('campaign')
+@click.argument('config-file', type=click.Path(exists=True))
+@click.option('-d', '--device', help='Device type (bolt, faultycat)')
+def glitch_campaign(config_file, device):
+    """Run automated glitching campaign from config file."""
+    import asyncio
+    from hwh.tui.campaign import run_campaign
+
+    devices = detect()
+
+    # Find glitch-capable device
+    if device:
+        dev_info = devices.get(device)
+    else:
+        for key, dev in devices.items():
+            if 'voltage_glitch' in dev.capabilities:
+                dev_info = dev
+                break
+        else:
+            click.echo("No glitching device found!", err=True)
+            return 1
+
+    backend = get_backend(dev_info)
+
+    click.echo(f"Running campaign from: {config_file}")
+    click.echo()
+
+    # Run campaign
+    stats = asyncio.run(run_campaign(backend, config_file, log_callback=click.echo))
+
+    # Display results
+    click.echo()
+    click.echo("Campaign complete!")
+    click.echo(f"  Glitches sent: {stats.glitches_sent}")
+    click.echo(f"  Elapsed time: {stats.elapsed_seconds:.1f}s")
+    click.echo(f"  Rate: {stats.glitches_per_second:.1f} glitches/sec")
+
+    if stats.success:
+        click.echo("  Status: SUCCESS ✓")
+    else:
+        click.echo("  Status: No success detected")
+
+
+# --------------------------------------------------------------------------
+# TUI Interface
+# --------------------------------------------------------------------------
+
+@cli.command()
+def tui():
+    """Launch interactive TUI (Terminal User Interface)."""
+    try:
+        from hwh.tui.app import run_tui
+        run_tui()
+    except ImportError as e:
+        click.echo(f"Error: {e}", err=True)
+        click.echo("Make sure textual is installed: pip install textual")
+        return 1
+
+
+# --------------------------------------------------------------------------
 # Interactive Shell
 # --------------------------------------------------------------------------
 
@@ -408,13 +572,13 @@ def shell():
     """Start interactive Python shell with hwh loaded."""
     try:
         from IPython import embed
-        
+
         # Import useful things into namespace
         from hwh import detect, list_devices, get_backend
         from hwh.backends import SPIConfig, I2CConfig, UARTConfig, GlitchConfig
-        
+
         devices = detect()
-        
+
         click.echo("hwh Interactive Shell")
         click.echo("=" * 40)
         click.echo("Available:")
@@ -422,13 +586,13 @@ def shell():
         click.echo("  detect()    - Refresh device list")
         click.echo("  get_backend(device) - Get backend for device")
         click.echo("")
-        
+
         embed(colors='neutral')
-        
+
     except ImportError:
         click.echo("IPython not installed. Install with: pip install ipython")
         click.echo("Falling back to basic Python shell...")
-        
+
         import code
         code.interact(local=locals())
 

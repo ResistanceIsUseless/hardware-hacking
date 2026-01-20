@@ -1,0 +1,351 @@
+/***
+ * colorscheme: https://www.schemecolor.com/metagross-pokemon.php
+ * Name: Police Blue       Hex: #2F596D
+ * Name: Crystal Blue      Hex: #5E99AE
+ * Name: Pastel Blue       Hex: #9DC3CF
+ * Name: Medium Carmine    Hex: #B13840
+ * Name: Ash Gray          Hex: #B3B8BB
+ * Name: Chinese Black     Hex: #141618
+ ***/
+
+    Screen {
+        layout: vertical;
+        background: #141618;
+    }
+    
+    .top_section {
+        height: 6;
+        width: 100%;
+        layout: vertical;
+    }
+
+    .program_name {
+        text-align: center;
+        width: 100%;
+        height: 1;
+        color: #9DC3CF;
+    }
+
+    .control_row {
+        width: 1fr;
+        height: 1;
+        layout: horizontal;
+        align: center middle;
+    }
+
+    .control_label {
+        width: 8;
+        text-align: right;
+        padding-right: 1;
+    }
+
+    .uart_label {
+        width: 6;
+        text-align: right;
+        padding-right: 1;
+    }
+
+    .btn {
+        width: 6;
+        min-width: 6;
+        height: 1;
+        margin: 0;
+        padding: 0;
+        border: none;
+        text-align: center;
+    }
+
+    .btn-100 { width: 6; min-width: 6; }
+    .btn-10 { width: 5; min-width: 5; }
+    .btn-1 { width: 4; min-width: 4; }
+
+    .btn_save {
+        width: 6;
+        min-width: 6;
+        height: 1;
+        border: none;
+        text-align: center;
+        background: #2F596D;
+        color: #9DC3CF;
+    }
+
+    .btn_glitch {
+        width: 8;
+        min-width: 8;
+        height: 1;
+        border: none;
+        text-align: center;
+        background: #2F596D;
+        color: #9DC3CF;
+        margin-left: 1;
+    }
+
+    #save_uart{ margin-left: 1; }
+    #save_config{ margin-left: 20; }
+
+    .btn_toggle_1 {
+        width: 5;
+        min-width: 5;
+        height: 1;
+        border: none;
+        text-align: center;
+        background: #2F596D;
+        color: #9DC3CF;
+    }
+
+    .btn_settings {
+        /*width: 5;*/
+        min-width: 5;
+        height: 1;
+        border: none;
+        text-align: center;
+        background: #2F596D;
+        color: #9DC3CF;
+    }
+
+   .switch_box {
+        height: 6;  /* Reduce the height of the container for better alignment */
+        width: 12;  /* Add a width to the box */
+        padding: 0; /* Add padding for the switch itself */
+        border: round #2F596D;
+        text-align: center;
+        border-title-color: #2F596D;
+        border-title-style: bold
+    }
+
+    .uart_box {
+        height: 3;  /* Reduce the height of the container for better alignment */
+        width: 27;  /* Add a width to the box */
+        padding: 0; /* Add padding for the switch itself */
+        border-top: round #2F596D;
+        border-right: round #2F596D;
+        border-title-color: #9DC3CF;
+        text-align: center;
+        border-title-color: #2F596D;
+        border-title-style: bold;
+    }
+
+    .config_box {
+        height: 3;  /* Reduce the height of the container for better alignment */
+        width: 27;  /* Add a width to the box */
+        padding: 0; /* Add padding for the switch itself */
+        border-top: round #2F596D;
+        border-right: round #2F596D;
+        text-align: center;
+        border-title-color: #2F596D;
+        border-title-style: bold;
+    }
+
+
+    .switch_title {
+        width: 100%;
+        color: #9DC3CF;
+        padding-bottom: 0;  /* Add some spacing below the title */
+        text-align: center;
+    }
+
+    .switch {
+        background: #5E99AE;
+        text-align: center;
+        border: none;
+    }
+
+    #custom-switch > .switch--slider {
+        color: #B13840;
+        background: #141618;
+    }
+
+    #custom-switch.-on > .switch--slider {
+        color: #5E99AE;
+    }
+    #glitch-switch > .switch--slider {
+        color: #B13840;
+        background: #141618;
+    }
+
+    #glitch-switch.-on > .switch--slider {
+        color: #5E99AE;
+    }
+
+    .control_input {
+        width: 12;
+        height: 1;
+        border: none;
+        text-align: center;
+    }
+
+    #baud_rate_input{ width: 13; }
+
+    #uart_port_input{ width: 20; }
+    #config_file_input{ width: 20; }
+    .onerow {
+        height: 1;
+    }
+
+    .top_text {
+        width: 1fr;
+    }
+
+    .top_right {
+        width: 37;
+        height: 6;
+        dock: right;
+        color: #9DC3CF;
+        border: none;
+    }
+
+    .top_left {
+        width: 30;
+        height: 6;
+        dock: left;
+        color: #9DC3CF;
+        border: none;
+        padding: 0;
+    }
+    
+    .top_box {
+        width: 24;
+        height: 6;
+        dock: right;
+        color: #9DC3CF;
+        border: double #2F596D;
+        border-title-color: #2F596D;
+        border-title-style: bold
+    }
+    
+    .main_section {
+        layout: horizontal;
+        width: 100vw;
+        height: 1fr;
+        /* border: solid; */
+    }
+    
+    .left_sidebar {
+        width: 16;
+        layout: vertical;
+    }
+
+    .sidebar_triggers_content{
+        height: 9;
+        border-top: round #2F596D;
+        border-right: round #2F596D;
+        border-title-color: #2F596D;
+        border-title-style: bold
+    }
+
+    .sidebar_conditions_content{
+        /*height: auto;*/
+        border-top: round #2F596D;
+        border-right: round #2F596D;
+        border-title-color: #2F596D;
+        border-title-style: bold
+    }
+
+    .sidebar_settings_content{
+        height: 1fr;
+        border-top: round #2F596D;
+        border-right: round #2F596D;
+        border-title-color: #2F596D;
+        border-title-style: bold
+    }
+    
+    .sidebar_triggers {
+        height: 9;
+        color: #9DC3CF;
+        border: none;
+        layout: grid;
+        grid-size: 4 8;
+        grid-columns: 3 3 4 6;
+    }
+    .sidebar_trigger_string{
+        margin-left: 1; 
+    }
+
+    .sidebar_conditions {
+        color: #9DC3CF;
+        border: none;
+        layout: grid;
+        grid-size: 3;
+        grid-columns: 6 4 6;
+        grid-rows: 1;
+    }
+
+    .sidebar_settings_switches{
+        color: #9DC3CF;
+        height: 3;
+        border: none;
+        layout: grid;
+        grid-size: 2;
+        grid-columns: 12 4;
+        grid-rows: 1;
+        /*border: solid;*/
+    }
+
+    .centre_settings_buttons {
+        align: center top;
+        text-align: center;
+        content-align: center middle;
+        layout: vertical;
+        width: 100%;
+        height: 2;
+        padding-top: 1;
+    }
+
+    .sidebar_trigger_switch{
+        padding:0;
+        border:none;
+        width:3;
+    }
+
+    .sidebar_trigger_switch > .switch--slider {
+        color: #B13840;
+        background: #141618;
+    }
+
+    .sidebar_trigger_switch.-on > .switch--slider {
+        color: #5E99AE;
+    }
+
+    .main_content {
+        width: 1fr;
+        border-top: round #2F596D;
+        border-title-color: #5E99AE;
+        border-title-align: left;
+        border-title-style: bold;
+        layout: vertical;
+        /*border: solid red;*/
+    }
+    .scrollable_log {
+        height: 1fr;
+        max-width: 100vw;
+        overflow-y: scroll;
+        background: #141618;
+        color: #B3B8BB;
+        padding: 0;
+        overflow-x: auto;
+        scrollbar-color-active: #5E99AE;
+        scrollbar-color-hover: #5E99AE;
+        scrollbar-color: #2F596D;
+        /*border: solid #888;*/
+    }
+    
+    .input_container {
+        width: 100%;
+        height: 1;
+        layout: horizontal;
+    }
+
+    .input_prompt {
+        width: 2;
+        text-align: right;
+        background: #141618;
+        color: #9DC3CF;
+    }
+
+    .input_area {
+        height: 1;
+        width: 1fr;
+        border: none;
+        background: #141618;
+        color: #9DC3CF;
+    }
