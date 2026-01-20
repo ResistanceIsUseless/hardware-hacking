@@ -6,11 +6,11 @@ Reference: https://github.com/tigard-tools/tigard
 
 from typing import Any, Optional
 
-from .backends import (
+from .base import (
     BusBackend, DebugBackend, register_backend,
     SPIConfig, I2CConfig, UARTConfig
 )
-from .detect import DeviceInfo
+from ..detect import DeviceInfo
 
 
 class TigardBackend(BusBackend):

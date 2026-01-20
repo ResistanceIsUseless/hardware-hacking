@@ -464,25 +464,46 @@ hwh/
 ├── detect.py                      # USB/serial device detection
 ├── backends.py                    # Base classes + registry
 ├── backend_*.py                   # Device backends (buspirate, bolt, stlink, etc.)
-│
-├── tui/                          # Terminal UI and device management
-│   ├── device_pool.py            # Multi-device coordination
-│   └── app.py                    # Textual TUI (WIP)
+├── cli.py                         # Command-line interface
+├── interactive.py                 # Interactive shell
+├── glitch_profiles.py            # Chip-specific attack database
 │
 ├── automation/                   # Protocol automation
 │   └── uart.py                   # UART intelligence
 │
 ├── wrappers/                     # Device-specific high-level APIs
-│   └── buspirate.py             # Bus Pirate 20-command wrapper
+│   └── buspirate.py             # Bus Pirate wrapper
 │
 ├── workflows/                    # Multi-device workflows
 │   ├── base.py                  # Workflow base classes
 │   ├── glitch_monitor.py        # Glitch + Monitor workflow
 │   └── adaptive_glitch.py       # Profile-guided adaptive workflow
 │
-├── glitch_profiles.py           # Chip-specific attack database
-├── GLITCH_PROFILES_GUIDE.md     # Profile usage guide
-└── README.md                    # This file
+├── tui/                          # Terminal UI
+│   ├── device_pool.py           # Multi-device coordination
+│   └── app.py                   # Textual TUI (WIP)
+│
+├── pybpio/                       # Bus Pirate Binary I/O protocol
+├── tooling/                      # Additional tools
+│
+├── docs/                         # Documentation
+│   ├── PHASE1_IMPLEMENTATION.md # Implementation details
+│   ├── BUSPIRATE_USAGE.md       # Bus Pirate guide
+│   ├── BPIO2_IMPLEMENTATION.md  # BPIO2 protocol docs
+│   ├── KNOWN_ISSUES.md          # Troubleshooting
+│   └── FIXES_APPLIED.md         # Bug fix history
+│
+├── examples/                     # Working examples
+│   ├── 01_device_discovery.py   # Basic device detection
+│   ├── 02_uart_auto_interact.py # UART automation
+│   └── 03_stm32_rdp_bypass.py   # Full workflow example
+│
+├── tests/                        # Test suite
+│
+├── GLITCH_PROFILES_GUIDE.md     # Profile database guide
+├── README.md                    # This file
+├── setup.sh                     # Installation script
+└── pyproject.toml               # Package configuration
 ```
 
 ## Troubleshooting
@@ -558,7 +579,9 @@ python3 examples/03_stm32_rdp_bypass.py
 - **Setup Guide**: [docs/guides/setup.md](../docs/guides/setup.md) - Hardware lab setup
 - **Target Selection**: [docs/guides/targets-guide.md](../docs/guides/targets-guide.md) - Choosing practice devices
 - **Glitch Profiles**: [GLITCH_PROFILES_GUIDE.md](GLITCH_PROFILES_GUIDE.md) - Profile database usage
-- **Phase 1 Summary**: [PHASE1_IMPLEMENTATION.md](PHASE1_IMPLEMENTATION.md) - Implementation details
+- **Phase 1 Summary**: [docs/PHASE1_IMPLEMENTATION.md](docs/PHASE1_IMPLEMENTATION.md) - Implementation details
+- **Bus Pirate Usage**: [docs/BUSPIRATE_USAGE.md](docs/BUSPIRATE_USAGE.md) - Bus Pirate integration guide
+- **Known Issues**: [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) - Troubleshooting and workarounds
 - **Attack Patterns**: [attack-patterns/](../attack-patterns/) - Vulnerability patterns
 
 ## Supported Hardware

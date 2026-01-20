@@ -11,11 +11,11 @@ This backend wraps that library or provides a compatible implementation.
 from typing import Any, Optional
 import time
 
-from .backends import (
+from .base import (
     GlitchBackend, register_backend,
     GlitchConfig, TriggerEdge
 )
-from .detect import DeviceInfo
+from ..detect import DeviceInfo
 
 
 class BoltBackend(GlitchBackend):

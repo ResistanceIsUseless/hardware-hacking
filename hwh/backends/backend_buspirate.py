@@ -9,17 +9,17 @@ Reference: https://docs.buspirate.com/docs/binmode-reference/protocol-bpio2/
 
 from typing import Any, Optional
 
-from .backends import (
+from .base import (
     BusBackend, register_backend,
     SPIConfig, I2CConfig, UARTConfig
 )
-from .detect import DeviceInfo
+from ..detect import DeviceInfo
 
 # Import official BPIO2 library
-from .pybpio.bpio_client import BPIOClient
-from .pybpio.bpio_spi import BPIOSPI
-from .pybpio.bpio_i2c import BPIOI2C
-from .pybpio.bpio_uart import BPIOUART
+from ..pybpio.bpio_client import BPIOClient
+from ..pybpio.bpio_spi import BPIOSPI
+from ..pybpio.bpio_i2c import BPIOI2C
+from ..pybpio.bpio_uart import BPIOUART
 
 
 class BusPirateBackend(BusBackend):

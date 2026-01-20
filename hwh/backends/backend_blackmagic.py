@@ -16,10 +16,10 @@ import subprocess
 import re
 from typing import Any, Optional
 
-from .backends import (
+from .base import (
     DebugBackend, register_backend
 )
-from .detect import DeviceInfo
+from ..detect import DeviceInfo
 
 
 class BlackMagicProbeBackend(DebugBackend):

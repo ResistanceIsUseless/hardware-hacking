@@ -9,7 +9,7 @@ from typing import Optional, Any
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from .detect import DeviceInfo
+from ..detect import DeviceInfo
 
 
 # --------------------------------------------------------------------------
