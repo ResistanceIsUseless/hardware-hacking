@@ -89,13 +89,16 @@ echo "========================================"
 echo
 echo "Next steps:"
 echo "  1. Test device detection:"
-echo "     cd .. && python3 hwh/examples/01_device_discovery.py"
+echo "     cd .. && python -m hwh detect"
 echo
-echo "  2. Read the documentation:"
+echo "  2. Try the examples:"
+echo "     cd .. && python hwh/examples/01_device_discovery.py"
+echo
+echo "  3. Launch the TUI:"
+echo "     cd .. && python -m hwh tui"
+echo
+echo "  4. Read the documentation:"
 echo "     cat README.md"
 echo
-echo "  3. Try UART automation (if you have a target):"
-echo "     cd .. && python3 hwh/examples/02_uart_auto_interact.py"
-echo
-echo "  4. See examples/README.md for more examples"
+echo "  5. See examples/README.md for more examples"
 echo

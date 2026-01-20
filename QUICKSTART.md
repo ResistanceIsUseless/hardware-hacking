@@ -43,9 +43,16 @@ python3 -c "from hwh import detect; print('OK')"
 
 ### 1. Detect Your Hardware
 
+Quick test with CLI:
 ```bash
 cd hardware-hacking
-python3 hwh/examples/01_device_discovery.py
+python -m hwh detect
+```
+
+Or run the full example:
+```bash
+cd hardware-hacking
+python hwh/examples/01_device_discovery.py
 ```
 
 Expected output:
