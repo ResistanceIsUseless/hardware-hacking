@@ -19,21 +19,38 @@ cd hardware-hacking/hwh
 
 The script will:
 - Check Python version
-- Install hwh package
-- Install dependencies
+- Offer to create a virtual environment if needed (macOS/modern Python)
+- Install hwh package in editable mode
+- Install optional dependencies
 - Verify installation
 - Scan for connected devices
 
 ### Option 2: Manual Setup
 
+**For macOS (externally-managed Python):**
+```bash
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install hwh
+cd hardware-hacking/hwh
+pip install -e .
+pip install cobs flatbuffers textual
+
+# Verify
+python3 -c "from hwh import detect; print('OK')"
+```
+
+**For Linux or if you prefer user install:**
 ```bash
 cd hardware-hacking/hwh
 
 # Install package
-pip3 install -e .
+pip3 install --user -e .
 
 # Install optional dependencies
-pip3 install cobs flatbuffers textual
+pip3 install --user cobs flatbuffers textual
 
 # Verify
 python3 -c "from hwh import detect; print('OK')"

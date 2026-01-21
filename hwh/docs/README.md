@@ -47,7 +47,7 @@ History of bug fixes and improvements:
 
 - **Main README**: [../README.md](../README.md) - Complete toolkit overview
 - **Examples**: [../examples/README.md](../examples/README.md) - Working code examples
-- **Glitch Profiles**: [../GLITCH_PROFILES_GUIDE.md](../GLITCH_PROFILES_GUIDE.md) - Attack database
+- **Glitch Profiles**: [GLITCH_PROFILES_GUIDE.md](GLITCH_PROFILES_GUIDE.md) - Attack database
 - **Quick Start**: [../../QUICKSTART.md](../../QUICKSTART.md) - Getting started guide
 
 ## Contributing

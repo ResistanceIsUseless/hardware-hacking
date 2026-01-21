@@ -208,23 +208,23 @@ class HwhApp(App):
 
                 # SPI tab (if device supports SPI)
                 with TabPane("SPI", id="tab-spi"):
-                    yield self._build_spi_controls()
+                    yield from self._build_spi_controls()
 
                 # I2C tab (if device supports I2C)
                 with TabPane("I2C", id="tab-i2c"):
-                    yield self._build_i2c_controls()
+                    yield from self._build_i2c_controls()
 
                 # UART tab (if device supports UART)
                 with TabPane("UART", id="tab-uart"):
-                    yield self._build_uart_controls()
+                    yield from self._build_uart_controls()
 
                 # Glitch tab (if device supports glitching)
                 with TabPane("Glitch", id="tab-glitch"):
-                    yield self._build_glitch_controls()
+                    yield from self._build_glitch_controls()
 
                 # Debug tab (if device supports debug)
                 with TabPane("Debug", id="tab-debug"):
-                    yield self._build_debug_controls()
+                    yield from self._build_debug_controls()
 
     def _build_spi_controls(self) -> ComposeResult:
         """Build SPI operation controls"""
@@ -403,17 +403,17 @@ class HwhApp(App):
             if self.backend:
                 try:
                     self.backend.connect()
-                    self.log("Connected")
+                    self.log_message("Connected")
                 except Exception as e:
-                    self.log(f"Error: {e}")
+                    self.log_message(f"Error: {e}")
 
         elif button_id == "btn-disconnect":
             if self.backend:
                 try:
                     self.backend.disconnect()
-                    self.log("Disconnected")
+                    self.log_message("Disconnected")
                 except Exception as e:
-                    self.log(f"Error: {e}")
+                    self.log_message(f"Error: {e}")
 
         # SPI buttons
         elif button_id == "btn-spi-id":
@@ -433,7 +433,7 @@ class HwhApp(App):
 
         # Add more button handlers as needed...
 
-    def log(self, message: str) -> None:
+    def log_message(self, message: str) -> None:
         """Add message to console log"""
         self.log_widget.write_line(message)
 
@@ -442,36 +442,36 @@ class HwhApp(App):
     def handle_spi_read_id(self) -> None:
         """Read SPI flash ID"""
         if not isinstance(self.backend, BusBackend):
-            self.log("Device does not support SPI")
+            self.log_message("Device does not support SPI")
             return
 
         try:
             with self.backend:
                 # Send 0x9F command to read JEDEC ID
                 flash_id = self.backend.spi_transfer(b'\x9f', read_len=3)
-                self.log(f"Flash ID: {flash_id.hex()}")
+                self.log_message(f"Flash ID: {flash_id.hex()}")
         except Exception as e:
-            self.log(f"Error: {e}")
+            self.log_message(f"Error: {e}")
 
     def handle_spi_dump(self) -> None:
         """Dump SPI flash to file"""
         # Implementation details...
-        self.log("SPI dump not yet implemented")
+        self.log_message("SPI dump not yet implemented")
 
     def handle_i2c_scan(self) -> None:
         """Scan I2C bus for devices"""
         if not isinstance(self.backend, BusBackend):
-            self.log("Device does not support I2C")
+            self.log_message("Device does not support I2C")
             return
 
-        self.log("Scanning I2C bus...")
+        self.log_message("Scanning I2C bus...")
         # Implementation details...
-        self.log("I2C scan not yet implemented")
+        self.log_message("I2C scan not yet implemented")
 
     def handle_glitch_single(self) -> None:
         """Trigger single glitch"""
         if not isinstance(self.backend, GlitchBackend):
-            self.log("Device does not support glitching")
+            self.log_message("Device does not support glitching")
             return
 
         try:
@@ -488,13 +488,13 @@ class HwhApp(App):
 
             self.backend.configure_glitch(cfg)
             self.backend.trigger()
-            self.log(f"✓ Glitch sent: {cfg.width_ns:.0f}ns")
+            self.log_message(f"✓ Glitch sent: {cfg.width_ns:.0f}ns")
         except Exception as e:
-            self.log(f"Error: {e}")
+            self.log_message(f"Error: {e}")
 
     def handle_glitch_sweep(self) -> None:
         """Start parameter sweep"""
-        self.log("Parameter sweep not yet fully implemented")
+        self.log_message("Parameter sweep not yet fully implemented")
         # This would start an async task to sweep parameters
 
 

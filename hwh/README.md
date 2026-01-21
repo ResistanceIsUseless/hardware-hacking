@@ -29,17 +29,38 @@ A unified interface for hardware security tools with multi-device coordination, 
 - USB access to hardware devices
 - macOS or Linux (ARM/x86)
 
-### Install from Source
+### Quick Install (Automated)
+
+The easiest way to install is using the setup script:
 
 ```bash
 git clone https://github.com/yourusername/hardware-hacking
-cd hardware-hacking
+cd hardware-hacking/hwh
+./setup.sh
+```
 
-# Install package
-cd hwh && pip install -e . && cd ..
+The setup script will:
+- Check Python version (3.10+ required)
+- Offer to create a virtual environment if needed (macOS/modern Python)
+- Install the hwh package in editable mode
+- Install optional dependencies (cobs, flatbuffers, textual)
+- Verify the installation
+- Scan for connected devices
 
-# Install optional dependencies for full functionality
+### Manual Install
+
+If you prefer to install manually:
+
+```bash
+# Option 1: Using virtual environment (recommended for macOS)
+python3 -m venv venv
+source venv/bin/activate
+cd hwh && pip install -e .
 pip install cobs flatbuffers textual
+
+# Option 2: User install (no virtual environment)
+cd hwh && pip install --user -e .
+pip install --user cobs flatbuffers textual
 ```
 
 ### Usage

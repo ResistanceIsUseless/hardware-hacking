@@ -34,9 +34,45 @@ if [ ! -f "pyproject.toml" ]; then
     exit 1
 fi
 
+# Check if we need a virtual environment (PEP 668)
+echo "Checking Python environment..."
+
+# Check if already in a virtual environment
+if [ -n "$VIRTUAL_ENV" ]; then
+    echo "✓ Running in virtual environment: $VIRTUAL_ENV"
+    PIP_FLAGS=""
+elif python3 -m pip install --help | grep -q "break-system-packages"; then
+    echo "⚠️  System Python is externally managed (PEP 668)"
+    echo ""
+    echo "You have two options:"
+    echo "  1. Create a virtual environment (recommended)"
+    echo "  2. Install with --user flag"
+    echo ""
+    read -p "Create virtual environment in ../venv? [Y/n] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        echo "Creating virtual environment..."
+        python3 -m venv ../venv
+        echo "✓ Virtual environment created at ../venv"
+        echo ""
+        echo "To activate the virtual environment:"
+        echo "  source ../venv/bin/activate"
+        echo ""
+        echo "Then re-run this setup script:"
+        echo "  ./setup.sh"
+        echo ""
+        exit 0
+    else
+        echo "Installing with --user flag..."
+        PIP_FLAGS="--user"
+    fi
+else
+    PIP_FLAGS=""
+fi
+
 # Install package
 echo "Installing hwh package..."
-pip3 install -e .
+pip3 install $PIP_FLAGS -e .
 
 if [ $? -ne 0 ]; then
     echo "❌ Error: Failed to install hwh package"
@@ -48,7 +84,7 @@ echo
 
 # Install optional dependencies
 echo "Installing optional dependencies..."
-pip3 install cobs flatbuffers textual
+pip3 install $PIP_FLAGS cobs flatbuffers textual
 
 if [ $? -ne 0 ]; then
     echo "⚠️  Warning: Some optional dependencies failed to install"
