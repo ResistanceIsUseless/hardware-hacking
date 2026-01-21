@@ -83,9 +83,8 @@ Homepage = "https://github.com/yourusername/hwh"
 Repository = "https://github.com/yourusername/hwh"
 Issues = "https://github.com/yourusername/hwh/issues"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["hwh*"]
+[tool.setuptools]
+packages = ["hwh", "hwh.backends", "hwh.pybpio", "hwh.automation", "hwh.tui", "hwh.wrappers", "hwh.workflows"]
 
 [tool.ruff]
 line-length = 100
