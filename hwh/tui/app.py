@@ -1,495 +1,597 @@
 """
-Universal TUI for hwh - Hardware Hacking Tool
+hwh TUI - Hardware Hacking Tool
 
-Multi-device interface supporting simultaneous connections.
-Design inspired by glitch-o-bolt by 0xRoM.
+Multi-device interface with device-based tabs.
+Each connected device gets its own tab with all features.
+
+Design:
+- Main page shows detected devices
+- Connect to device -> creates device tab
+- Multiple devices can be connected simultaneously
+- Split-screen layout for multi-device workflows (press 's')
 """
 
 import asyncio
-import re
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass
+from typing import Dict, Optional, Type, List, Tuple
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Vertical, Horizontal, Grid
-from textual.widgets import Static, Button, Switch, Input, Log, TabbedContent, TabPane, DataTable
-from textual.messages import Message
+from textual.containers import Container, Vertical, Horizontal, ScrollableContainer
+from textual.widgets import Static, Button, Select, TabbedContent, TabPane, Footer, Header
+from textual.binding import Binding
 
 from ..detect import detect, DeviceInfo
-from ..backends import get_backend, Backend, BusBackend, DebugBackend, GlitchBackend
+
+# Import all panel types
+from .panels.base import DevicePanel, GenericPanel, PanelCapability
+from .panels.buspirate import BusPiratePanel
+from .panels.bolt import BoltPanel
+from .panels.tigard import TigardPanel
+from .panels.faultycat import FaultyCatPanel
+from .panels.tilink import TILinkPanel
+from .panels.blackmagic import BlackMagicPanel
+from .panels.uart_monitor import UARTMonitorPanel
+from .panels.base import DeviceOutputMessage
 
 
-@dataclass
-class UartFilter:
-    """UART output filter with regex pattern and highlight color"""
-    pattern: str
-    color: str
-    enabled: bool = True
+class SplitPanelMirror(Container):
+    """
+    A mirror view that displays output from an existing panel.
+
+    This avoids creating duplicate serial connections when showing
+    the same device in split view. Instead of opening a new connection,
+    it subscribes to output messages from the source panel.
+    """
+
+    def __init__(self, device_info: DeviceInfo, source_panel: "DevicePanel", *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.device_info = device_info
+        self.source_panel = source_panel
+        self._log_widget = None
+
+    def compose(self) -> ComposeResult:
+        from textual.widgets import Log
+
+        with Vertical():
+            # Header
+            with Horizontal(classes="panel-header"):
+                yield Static(f"{self.device_info.name} (mirror)", classes="device-title")
+                yield Static(f"Port: {self.device_info.port}", classes="device-port")
+
+            # Output log - mirrors the source panel
+            self._log_widget = Log(id=f"mirror-log-{id(self)}", classes="uart-log")
+            self._log_widget.border_title = "output (mirrored)"
+            yield self._log_widget
+
+    async def on_mount(self) -> None:
+        """Subscribe to output from the source panel when mounted"""
+        # Register callback on source panel
+        self.source_panel.on_output(self._on_source_output)
+
+    def _on_source_output(self, text: str) -> None:
+        """Handle output from the source panel"""
+        if self._log_widget:
+            try:
+                self._log_widget.write(text)
+            except Exception:
+                pass
+
+    async def disconnect(self) -> None:
+        """Mirror doesn't own the connection, so nothing to disconnect"""
+        pass
 
 
-class DeviceConnection:
-    """Represents a connected device with its backend"""
-    def __init__(self, device: DeviceInfo, backend: Backend):
-        self.device = device
-        self.backend = backend
-        self.connected = False
-        self.uart_buffer = ""
+class SplitView(Container):
+    """Split view container showing two device panels side by side"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.left_device_id: Optional[str] = None
+        self.right_device_id: Optional[str] = None
+
+    def compose(self) -> ComposeResult:
+        with Horizontal(id="split-container"):
+            # Left pane
+            with Vertical(id="split-left", classes="split-pane"):
+                yield Static("Select device for left pane", id="left-placeholder", classes="split-placeholder")
+
+            # Divider
+            yield Static("│", id="split-divider", classes="split-divider")
+
+            # Right pane
+            with Vertical(id="split-right", classes="split-pane"):
+                yield Static("Select device for right pane", id="right-placeholder", classes="split-placeholder")
 
 
-class DeviceMessage(Message):
-    """Message sent when device selection changes"""
-    def __init__(self, device_id: str):
-        super().__init__()
-        self.device_id = device_id
+# Device VID:PID to panel class mapping
+DEVICE_PANELS: Dict[tuple, Type[DevicePanel]] = {
+    # Bus Pirate 5/6
+    (0x1209, 0x7331): BusPiratePanel,
 
+    # Curious Bolt
+    (0xcafe, 0x4002): BoltPanel,
 
-class SerialDataMessage(Message):
-    """Message sent when serial data is received"""
-    def __init__(self, device_id: str, data: str):
-        super().__init__()
-        self.device_id = device_id
-        self.data = data
+    # Bolt CTF (treated as UART monitor)
+    (0xcafe, 0x4004): UARTMonitorPanel,
+
+    # Tigard
+    (0x0403, 0x6010): TigardPanel,
+
+    # FaultyCat
+    (0x2341, 0x8037): FaultyCatPanel,  # Arduino Micro based
+
+    # Black Magic Probe
+    (0x1d50, 0x6018): BlackMagicPanel,
+
+    # TI MSP-FET
+    (0x0451, 0xbef3): TILinkPanel,
+
+    # Generic FTDI (could be many things)
+    (0x0403, 0x6001): UARTMonitorPanel,
+
+    # CH340 UART adapter
+    (0x1a86, 0x7523): UARTMonitorPanel,
+
+    # CP2102 UART adapter
+    (0x10c4, 0xea60): UARTMonitorPanel,
+}
 
 
 class HwhApp(App):
     """
-    Multi-device hardware hacking TUI
+    hwh TUI Application
 
-    Supports connecting to multiple devices simultaneously:
-    - Monitor UART on one device while glitching with another
-    - Compare outputs from multiple targets
-    - Coordinate multi-tool attacks
+    Architecture:
+    - Devices tab shows all detected devices
+    - Each connected device gets its own tab
+    - Tabs contain device-specific panels with all features
     """
 
     CSS_PATH = "style.tcss"
-    TITLE = "hwh - Universal Hardware Hacking Tool"
+    TITLE = "hwh - Hardware Hacking Toolkit"
+
+    BINDINGS = [
+        Binding("q", "quit", "Quit"),
+        Binding("r", "refresh_devices", "Refresh"),
+        Binding("d", "show_devices", "Devices"),
+        Binding("s", "toggle_split", "Split"),
+        Binding("c", "show_coordination", "Coordination"),
+        Binding("escape", "show_devices", "Discovery"),
+        Binding("?", "show_help", "Help"),
+    ]
 
     def __init__(self):
         super().__init__()
         self.available_devices: Dict[str, DeviceInfo] = {}
-        self.connections: Dict[str, DeviceConnection] = {}
-        self.selected_device: Optional[str] = None
-
-        # Glitch parameters (when glitch device is selected)
-        self.glitch_length = 0
-        self.glitch_repeat = 0
-        self.glitch_delay = 0
-        self.glitch_running = False
-
-        # UART filters
-        self.uart_filters: List[UartFilter] = []
-
-    async def on_ready(self) -> None:
-        """Initialize: detect devices and prepare UI"""
-        # Detect all available devices
-        self.available_devices = detect()
-
-        if not self.available_devices:
-            self.notify("No devices detected!", severity="warning")
-            return
-
-        # Populate device list
-        await self.refresh_device_list()
-
-    async def refresh_device_list(self) -> None:
-        """Update the device list display"""
-        device_list = self.query_one("#device-list", Container)
-        await device_list.remove_children()
-
-        # Add device entries
-        for device_id, device_info in self.available_devices.items():
-            is_connected = device_id in self.connections
-            status_symbol = "●" if is_connected else "○"
-            status_class = "status-on" if is_connected else "status-off"
-
-            # Create device entry with all widgets
-            entry = Horizontal(classes="device-entry")
-
-            # Mount entry to device_list first, then add children
-            await device_list.mount(entry)
-
-            # Now add children to the mounted entry
-            await entry.mount(Static(status_symbol, classes=status_class))
-            await entry.mount(Static(device_info.name))
-            await entry.mount(Static(f"({device_info.vid:04x}:{device_info.pid:04x})"))
-
-            if is_connected:
-                await entry.mount(Button("Disconnect", id=f"disconnect-{device_id}", classes="btn-small"))
-            else:
-                await entry.mount(Button("Connect", id=f"connect-{device_id}", classes="btn-small"))
+        self.connected_panels: Dict[str, DevicePanel] = {}
+        self.split_panels: Dict[str, DevicePanel] = {}  # Panels created for split view
+        self._tab_counter = 0
+        self._split_view_active = False
 
     def compose(self) -> ComposeResult:
-        """Build the multi-device UI"""
+        yield Header()
 
-        with Container(id="main-layout"):
-            # Left sidebar - Device list and status
-            with Vertical(id="sidebar"):
-                with Container(id="device-section") as device_section:
-                    device_section.border_title = "devices"
+        with TabbedContent(id="main-tabs"):
+            # Devices tab - always present
+            with TabPane("Devices", id="tab-devices"):
+                yield from self._build_devices_page()
 
-                    # Device list container (populated dynamically)
-                    yield Container(id="device-list")
+        yield Footer()
 
-                # Glitch controls (shown when glitch device is selected)
-                with Container(id="glitch-section", classes="hidden") as glitch_section:
-                    glitch_section.border_title = "glitch parameters"
+    def _build_devices_page(self) -> ComposeResult:
+        """Build the device selection page"""
+        with Vertical(id="devices-page"):
+            yield Static("hwh - Hardware Hacking Toolkit", id="app-title")
+            yield Static("Detected Devices:", classes="section-title")
 
-                    # Length control
-                    with Horizontal(classes="param-row"):
-                        yield Static("length:", classes="param-label")
-                        for amount in [-100, -10, -1]:
-                            yield Button(str(amount), classes="btn-adjust", id=f"length-neg-{abs(amount)}")
-                        yield Input(value="0", id="length-input", classes="param-input")
-                        yield Button("save", classes="btn-save", id="length-save")
-                        for amount in [1, 10, 100]:
-                            yield Button(f"+{amount}", classes="btn-adjust", id=f"length-pos-{amount}")
+            # Device list container
+            yield ScrollableContainer(id="device-list")
 
-                    # Repeat control
-                    with Horizontal(classes="param-row"):
-                        yield Static("repeat:", classes="param-label")
-                        for amount in [-100, -10, -1]:
-                            yield Button(str(amount), classes="btn-adjust", id=f"repeat-neg-{abs(amount)}")
-                        yield Input(value="0", id="repeat-input", classes="param-input")
-                        yield Button("save", classes="btn-save", id="repeat-save")
-                        for amount in [1, 10, 100]:
-                            yield Button(f"+{amount}", classes="btn-adjust", id=f"repeat-pos-{amount}")
+            # Control buttons
+            with Horizontal(classes="button-row"):
+                yield Button("Refresh Devices", id="btn-refresh", classes="btn-action")
+                yield Button("Add Manual Device", id="btn-add-manual", classes="btn-action")
 
-                    # Delay control
-                    with Horizontal(classes="param-row"):
-                        yield Static("delay:", classes="param-label")
-                        for amount in [-100, -10, -1]:
-                            yield Button(str(amount), classes="btn-adjust", id=f"delay-neg-{abs(amount)}")
-                        yield Input(value="0", id="delay-input", classes="param-input")
-                        yield Button("save", classes="btn-save", id="delay-save")
-                        for amount in [1, 10, 100]:
-                            yield Button(f"+{amount}", classes="btn-adjust", id=f"delay-pos-{amount}")
+    async def on_ready(self) -> None:
+        """Initialize application"""
+        await self.refresh_device_list()
 
-                    # Glitch control
-                    with Vertical(classes="glitch-control"):
-                        yield Button("glitch", classes="btn-glitch", id="btn-glitch")
-                        yield Switch(id="glitch-switch", animate=False)
+    async def action_refresh_devices(self) -> None:
+        """Refresh device list action"""
+        await self.refresh_device_list()
 
-                    # Status box
-                    status_table = DataTable(id="glitch-status", show_header=False, show_cursor=False)
-                    status_table.border_title = "status"
-                    status_table.add_columns("Param", "Value")
-                    status_table.add_row("length:", "0", key="length")
-                    status_table.add_row("repeat:", "0", key="repeat")
-                    status_table.add_row("delay:", "0", key="delay")
-                    status_table.add_row("elapsed:", "00:00:00", key="elapsed")
-                    yield status_table
+    async def action_show_devices(self) -> None:
+        """Switch to devices tab"""
+        tabs = self.query_one("#main-tabs", TabbedContent)
+        tabs.active = "tab-devices"
 
-            # Main content area
-            with Container(id="main-content"):
-                with TabbedContent(id="tabs"):
-                    # Console tab - shows all device output
-                    with TabPane("Console", id="tab-console"):
-                        self.console_log = Log(id="console-output")
-                        yield self.console_log
+    async def action_show_help(self) -> None:
+        """Show help"""
+        self.notify("hwh - Hardware Hacking Toolkit\nPress 'q' to quit, 'r' to refresh, 's' for split view, 'c' for coordination")
 
-                        with Horizontal(classes="input-row"):
-                            yield Static("$> ")
-                            yield Input(placeholder="command...", id="console-input")
+    async def action_show_coordination(self) -> None:
+        """Show coordination panel for multi-device operations"""
+        if len(self.connected_panels) < 2:
+            self.notify("Connect at least 2 devices for coordination mode", severity="warning")
+            return
 
-                    # UART tab - multi-device monitoring with filters
-                    with TabPane("UART", id="tab-uart"):
-                        with Horizontal(id="uart-layout"):
-                            # UART output area
-                            with Vertical(classes="uart-output-section"):
-                                self.uart_log = Log(id="uart-output")
-                                yield self.uart_log
+        tabs = self.query_one("#main-tabs", TabbedContent)
 
-                                with Horizontal(classes="input-row"):
-                                    yield Static("$> ")
-                                    yield Input(placeholder="send to UART...", id="uart-input")
+        # Check if coordination tab already exists
+        try:
+            tabs.active = "tab-coordination"
+            return
+        except Exception:
+            pass
 
-                            # Filter controls
-                            with Vertical(id="uart-filters") as filter_section:
-                                filter_section.border_title = "filters"
+        # Create coordination tab
+        await self._create_coordination_tab()
 
-                                yield Static("Regex patterns to highlight:")
+    async def _create_coordination_tab(self) -> None:
+        """Create a coordination tab for multi-device operations"""
+        tabs = self.query_one("#main-tabs", TabbedContent)
 
-                                # Filter entries (add dynamically)
-                                yield Container(id="filter-list")
+        pane = TabPane("Coordination", id="tab-coordination")
+        await tabs.add_pane(pane)
 
-                                with Horizontal():
-                                    yield Input(placeholder="regex pattern...", id="filter-pattern")
-                                    yield Button("Add", id="add-filter", classes="btn-small")
+        # Build coordination content
+        coord_content = Vertical(id="coordination-content")
+        await pane.mount(coord_content)
 
-                    # SPI tab
-                    with TabPane("SPI", id="tab-spi"):
-                        yield from self._build_spi_controls()
+        # Header
+        await coord_content.mount(Static("Multi-Device Coordination", classes="section-title"))
+        await coord_content.mount(Static("Coordinate operations across multiple connected devices", classes="section-subtitle"))
 
-                    # I2C tab
-                    with TabPane("I2C", id="tab-i2c"):
-                        yield from self._build_i2c_controls()
+        # Connected devices summary
+        devices_summary = Vertical(id="coord-devices", classes="coord-section")
+        await coord_content.mount(devices_summary)
+        await devices_summary.mount(Static("Connected Devices:", classes="coord-label"))
 
-                    # Debug tab
-                    with TabPane("Debug", id="tab-debug"):
-                        yield from self._build_debug_controls()
+        for device_id, panel in self.connected_panels.items():
+            device_info = self.available_devices.get(device_id)
+            if device_info:
+                caps = ", ".join(device_info.capabilities[:3])
+                await devices_summary.mount(Static(f"  • {device_info.name} [{caps}]", classes="coord-device"))
 
-    def _build_spi_controls(self) -> ComposeResult:
-        """Build SPI controls"""
-        with Vertical():
-            yield Static("SPI Configuration")
+        # Coordination actions
+        actions_section = Vertical(id="coord-actions", classes="coord-section")
+        await coord_content.mount(actions_section)
+        await actions_section.mount(Static("Coordination Actions:", classes="coord-label"))
 
-            with Grid(classes="config-grid"):
-                yield Static("Speed:")
-                yield Input(value="1000000", id="spi-speed")
+        # Create button row (can't use context manager outside compose())
+        button_row = Horizontal(classes="coord-buttons")
+        await actions_section.mount(button_row)
+        await button_row.mount(Button("Glitch + Monitor", id="coord-glitch-monitor", classes="btn-coord"))
+        await button_row.mount(Button("Parallel Read", id="coord-parallel-read", classes="btn-coord"))
+        await button_row.mount(Button("Sync Triggers", id="coord-sync-triggers", classes="btn-coord"))
 
-                yield Static("Mode:")
-                yield Input(value="0", id="spi-mode")
+        # Switch to coordination tab
+        tabs.active = "tab-coordination"
+        self.notify("Coordination mode - select an operation")
 
-            yield Button("Configure", id="btn-spi-config", classes="btn-wide")
+    async def action_toggle_split(self) -> None:
+        """Toggle split view mode"""
+        tabs = self.query_one("#main-tabs", TabbedContent)
 
-            yield Static("Operations")
-            yield Button("Read Flash ID", id="btn-spi-id", classes="btn-wide")
-            yield Button("Dump Flash", id="btn-spi-dump", classes="btn-wide")
+        if self._split_view_active:
+            # Remove split view tab
+            try:
+                await tabs.remove_pane("tab-split")
+                self._split_view_active = False
+                # Clean up split panels
+                for panel in self.split_panels.values():
+                    await panel.disconnect()
+                self.split_panels.clear()
+                self.notify("Split view closed")
+            except Exception:
+                pass
+        else:
+            # Check if we have at least 2 connected devices
+            if len(self.connected_panels) < 2:
+                self.notify("Connect at least 2 devices for split view", severity="warning")
+                return
 
-    def _build_i2c_controls(self) -> ComposeResult:
-        """Build I2C controls"""
-        with Vertical():
-            yield Static("I2C Configuration")
+            # Create split view tab
+            await self._create_split_view()
+            self._split_view_active = True
 
-            with Grid(classes="config-grid"):
-                yield Static("Speed:")
-                yield Input(value="100000", id="i2c-speed")
+    async def _create_split_view(self) -> None:
+        """Create a split view with device selectors"""
+        tabs = self.query_one("#main-tabs", TabbedContent)
 
-                yield Static("Address:")
-                yield Input(value="0x50", id="i2c-addr")
+        # Create the split view pane
+        pane = TabPane("Split View", id="tab-split")
+        await tabs.add_pane(pane)
 
-            yield Button("Configure", id="btn-i2c-config", classes="btn-wide")
+        # Build split view content - create widgets directly, no context manager
+        split_content = Vertical(id="split-content")
+        await pane.mount(split_content)
 
-            yield Static("Operations")
-            yield Button("Scan Bus", id="btn-i2c-scan", classes="btn-wide")
-            yield Button("Read Byte", id="btn-i2c-read", classes="btn-wide")
+        # Device selector row
+        selector_row = Horizontal(id="split-selectors", classes="split-selector-row")
+        await split_content.mount(selector_row)
 
-    def _build_debug_controls(self) -> ComposeResult:
-        """Build debug/SWD/JTAG controls"""
-        with Vertical():
-            yield Static("Debug Operations")
+        # Build device options from connected panels
+        device_options = [(device_id, info.name) for device_id, info in self.available_devices.items()
+                         if device_id in self.connected_panels]
 
-            yield Button("Connect Target", id="btn-debug-connect", classes="btn-wide")
-            yield Button("Reset Target", id="btn-debug-reset", classes="btn-wide")
-            yield Button("Halt", id="btn-debug-halt", classes="btn-wide")
-            yield Button("Resume", id="btn-debug-resume", classes="btn-wide")
+        # Left pane selector
+        await selector_row.mount(Static("Left:", classes="split-label"))
+        left_select = Select(
+            [(name, dev_id) for dev_id, name in device_options],
+            id="select-left",
+            classes="split-select",
+            prompt="Select device"
+        )
+        await selector_row.mount(left_select)
 
-            yield Static("Memory")
+        # Right pane selector
+        await selector_row.mount(Static("Right:", classes="split-label"))
+        right_select = Select(
+            [(name, dev_id) for dev_id, name in device_options],
+            id="select-right",
+            classes="split-select",
+            prompt="Select device"
+        )
+        await selector_row.mount(right_select)
 
-            with Grid(classes="config-grid"):
-                yield Static("Address:")
-                yield Input(value="0x08000000", id="debug-addr")
+        # Main split container
+        split_container = Horizontal(id="split-container", classes="split-container")
+        await split_content.mount(split_container)
 
-                yield Static("Size:")
-                yield Input(value="0x1000", id="debug-size")
+        # Create left and right panes with divider
+        left_pane = Vertical(id="split-left", classes="split-pane")
+        divider = Static("│" * 50, classes="split-divider")  # Vertical line
+        right_pane = Vertical(id="split-right", classes="split-pane")
 
-            yield Button("Read Memory", id="btn-debug-read", classes="btn-wide")
-            yield Button("Dump Firmware", id="btn-debug-dump", classes="btn-wide")
+        await split_container.mount(left_pane)
+        await split_container.mount(divider)
+        await split_container.mount(right_pane)
+
+        # Add placeholders
+        await left_pane.mount(Static("Select a device above", classes="split-placeholder"))
+        await right_pane.mount(Static("Select a device above", classes="split-placeholder"))
+
+        # Switch to split view
+        tabs.active = "tab-split"
+        self.notify("Split view opened - select devices above")
+
+    async def _update_split_pane(self, pane_id: str, device_id: str) -> None:
+        """Update a split pane with a device panel or mirror"""
+        try:
+            pane = self.query_one(f"#{pane_id}", Vertical)
+            await pane.remove_children()
+
+            device_info = self.available_devices.get(device_id)
+            if not device_info:
+                await pane.mount(Static("Device not found", classes="split-placeholder"))
+                return
+
+            # Clean up old panel/mirror in this pane
+            old_panel = self.split_panels.get(pane_id)
+            if old_panel:
+                await old_panel.disconnect()
+
+            # Check if this device already has a connected panel
+            existing_panel = self.connected_panels.get(device_id)
+
+            if existing_panel:
+                # Device is already connected - create a mirror view instead
+                # This avoids creating duplicate serial connections
+                mirror = SplitPanelMirror(
+                    device_info=device_info,
+                    source_panel=existing_panel,
+                    id=f"mirror-{pane_id}-{device_id}"
+                )
+                self.split_panels[pane_id] = mirror
+                await pane.mount(mirror)
+                self.notify(f"Mirroring {device_info.name} output")
+
+            else:
+                # No existing panel - create new one with its own connection
+                panel_class = self._get_panel_class(device_info)
+                panel = panel_class(device_info, self, id=f"split-{pane_id}-{device_id}")
+                self.split_panels[pane_id] = panel
+                await pane.mount(panel)
+                await panel.connect()
+
+        except Exception as e:
+            self.notify(f"Error updating split pane: {e}", severity="error")
+
+    async def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle device selection in split view"""
+        select_id = event.select.id
+        if not select_id:
+            return
+
+        device_id = str(event.value) if event.value else None
+        if not device_id:
+            return
+
+        if select_id == "select-left":
+            await self._update_split_pane("split-left", device_id)
+        elif select_id == "select-right":
+            await self._update_split_pane("split-right", device_id)
+
+    async def refresh_device_list(self) -> None:
+        """Detect devices and update the list"""
+        # Detect devices
+        detected = detect()
+
+        # Convert to our format
+        self.available_devices = {}
+        for device_id, device_info in detected.items():
+            self.available_devices[device_id] = device_info
+
+        # Update UI
+        await self._update_device_list_ui()
+
+        self.notify(f"Found {len(self.available_devices)} device(s)")
+
+    async def _update_device_list_ui(self) -> None:
+        """Update the device list in the UI"""
+        try:
+            device_list = self.query_one("#device-list", ScrollableContainer)
+            await device_list.remove_children()
+
+            if not self.available_devices:
+                await device_list.mount(
+                    Static("No devices detected. Connect a device and click Refresh.", classes="no-devices")
+                )
+                return
+
+            # Add device entries - compact single-line format
+            for device_id, device_info in self.available_devices.items():
+                is_connected = device_id in self.connected_panels
+
+                # Create compact device entry
+                entry = Horizontal(classes="device-entry")
+                await device_list.mount(entry)
+
+                # Status indicator (● connected, ○ disconnected)
+                status_symbol = "●" if is_connected else "○"
+                status_class = "status-connected" if is_connected else "status-disconnected"
+                await entry.mount(Static(status_symbol, classes=f"status-indicator {status_class}"))
+
+                # Device name
+                await entry.mount(Static(device_info.name, classes="device-name"))
+
+                # Port path
+                await entry.mount(Static(device_info.port or "N/A", classes="device-port"))
+
+                # Capabilities (abbreviated)
+                caps = ", ".join(device_info.capabilities[:4]) if device_info.capabilities else "-"
+                if len(device_info.capabilities) > 4:
+                    caps += "..."
+                await entry.mount(Static(f"[{caps}]", classes="device-caps"))
+
+                # Connect/Disconnect button
+                if is_connected:
+                    btn = Button("Disconnect", id=f"disconnect-{device_id}", classes="btn-disconnect")
+                else:
+                    btn = Button("Connect", id=f"connect-{device_id}", classes="btn-connect")
+                await entry.mount(btn)
+
+        except Exception as e:
+            self.notify(f"Error updating device list: {e}", severity="error")
+
+    def _get_panel_class(self, device_info: DeviceInfo) -> Type[DevicePanel]:
+        """Get the appropriate panel class for a device"""
+        key = (device_info.vid, device_info.pid)
+
+        if key in DEVICE_PANELS:
+            return DEVICE_PANELS[key]
+
+        # Check capabilities for generic panel selection
+        if device_info.capabilities:
+            caps = [c.lower() for c in device_info.capabilities]
+            if "glitch" in caps:
+                return BoltPanel
+            if "swd" in caps or "jtag" in caps:
+                return TigardPanel
+            if "spi" in caps or "i2c" in caps:
+                return BusPiratePanel
+
+        # Default to UART monitor for unknown serial devices
+        return UARTMonitorPanel
+
+    async def connect_device(self, device_id: str) -> None:
+        """Connect to a device and create its tab"""
+        if device_id in self.connected_panels:
+            self.notify(f"Already connected to {device_id}")
+            return
+
+        device_info = self.available_devices.get(device_id)
+        if not device_info:
+            self.notify(f"Device not found: {device_id}", severity="error")
+            return
+
+        try:
+            # Get appropriate panel class
+            panel_class = self._get_panel_class(device_info)
+
+            # Create panel instance
+            self._tab_counter += 1
+            tab_id = f"tab-device-{self._tab_counter}"
+
+            panel = panel_class(device_info, self, id=f"panel-{device_id}")
+
+            # Store panel reference
+            self.connected_panels[device_id] = panel
+
+            # Add tab to tabbed content
+            tabs = self.query_one("#main-tabs", TabbedContent)
+
+            # Create tab pane with panel
+            pane = TabPane(device_info.name, id=tab_id)
+            await tabs.add_pane(pane)
+            await pane.mount(panel)
+
+            # Connect to device
+            success = await panel.connect()
+
+            if success:
+                # Switch to new tab
+                tabs.active = tab_id
+                self.notify(f"Connected to {device_info.name}")
+            else:
+                # Remove tab on failure
+                await tabs.remove_pane(tab_id)
+                del self.connected_panels[device_id]
+                self.notify(f"Failed to connect to {device_info.name}", severity="error")
+
+            # Update device list
+            await self._update_device_list_ui()
+
+        except Exception as e:
+            self.notify(f"Connection error: {e}", severity="error")
+
+    async def disconnect_device(self, device_id: str) -> None:
+        """Disconnect from a device and remove its tab"""
+        panel = self.connected_panels.get(device_id)
+        if not panel:
+            return
+
+        try:
+            # Disconnect panel
+            await panel.disconnect()
+
+            # Find and remove tab
+            tabs = self.query_one("#main-tabs", TabbedContent)
+            for pane in tabs.query(TabPane):
+                if panel in pane.query("*"):
+                    await tabs.remove_pane(pane.id)
+                    break
+
+            # Remove from connected panels
+            del self.connected_panels[device_id]
+
+            # Update device list
+            await self._update_device_list_ui()
+
+            self.notify(f"Disconnected from {panel.device_info.name}")
+
+        except Exception as e:
+            self.notify(f"Disconnect error: {e}", severity="error")
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle all button presses"""
+        """Handle button presses"""
         button_id = event.button.id
-
         if not button_id:
             return
 
-        # Device connection/disconnection
-        if button_id.startswith("connect-"):
+        if button_id == "btn-refresh":
+            await self.refresh_device_list()
+
+        elif button_id == "btn-add-manual":
+            self.notify("Manual device addition not yet implemented")
+
+        elif button_id.startswith("connect-"):
             device_id = button_id.replace("connect-", "")
             await self.connect_device(device_id)
 
         elif button_id.startswith("disconnect-"):
             device_id = button_id.replace("disconnect-", "")
             await self.disconnect_device(device_id)
-
-        # Glitch parameter adjustments
-        elif button_id.startswith(("length", "repeat", "delay")):
-            await self.handle_param_adjust(button_id)
-
-        # Glitch control
-        elif button_id == "btn-glitch":
-            await self.trigger_glitch()
-
-        # UART filter
-        elif button_id == "add-filter":
-            await self.add_uart_filter()
-
-        # Protocol operations
-        elif button_id.startswith("btn-"):
-            await self.handle_protocol_button(button_id)
-
-    async def connect_device(self, device_id: str) -> None:
-        """Connect to a device"""
-        if device_id in self.connections:
-            self.console_log.write_line(f"[!] {device_id} already connected")
-            return
-
-        device_info = self.available_devices.get(device_id)
-        if not device_info:
-            return
-
-        try:
-            # Create backend
-            backend = get_backend(device_info)
-            backend.connect()
-
-            # Store connection
-            conn = DeviceConnection(device_info, backend)
-            conn.connected = True
-            self.connections[device_id] = conn
-
-            self.console_log.write_line(f"[+] Connected to {device_info.name}")
-
-            # If this is a glitch device, show glitch controls
-            if "glitch" in device_info.capabilities:
-                glitch_section = self.query_one("#glitch-section")
-                glitch_section.remove_class("hidden")
-                self.selected_device = device_id
-
-            # Refresh device list
-            await self.refresh_device_list()
-
-        except Exception as e:
-            self.console_log.write_line(f"[!] Failed to connect to {device_info.name}: {e}")
-
-    async def disconnect_device(self, device_id: str) -> None:
-        """Disconnect from a device"""
-        conn = self.connections.get(device_id)
-        if not conn:
-            return
-
-        try:
-            conn.backend.disconnect()
-            del self.connections[device_id]
-
-            self.console_log.write_line(f"[-] Disconnected from {conn.device.name}")
-
-            # If this was the selected glitch device, hide glitch controls
-            if device_id == self.selected_device:
-                glitch_section = self.query_one("#glitch-section")
-                glitch_section.add_class("hidden")
-                self.selected_device = None
-
-            # Refresh device list
-            await self.refresh_device_list()
-
-        except Exception as e:
-            self.console_log.write_line(f"[!] Error disconnecting: {e}")
-
-    async def handle_param_adjust(self, button_id: str) -> None:
-        """Handle glitch parameter increment/decrement buttons"""
-        # Parse button ID: "length-neg-100", "repeat-pos-10", etc.
-        parts = button_id.split("-")
-        if len(parts) != 3:
-            return
-
-        param_name = parts[0]  # "length", "repeat", or "delay"
-        direction = parts[1]   # "pos" or "neg"
-        amount = int(parts[2]) # 1, 10, 100
-
-        # Calculate adjustment
-        adjustment = amount if direction == "pos" else -amount
-
-        # Get current value
-        input_widget = self.query_one(f"#{param_name}-input", Input)
-        current_value = int(input_widget.value or "0")
-
-        # Apply adjustment
-        new_value = max(0, current_value + adjustment)  # Don't go negative
-        input_widget.value = str(new_value)
-
-        # Update stored value
-        if param_name == "length":
-            self.glitch_length = new_value
-        elif param_name == "repeat":
-            self.glitch_repeat = new_value
-        elif param_name == "delay":
-            self.glitch_delay = new_value
-
-        # Update status table
-        status_table = self.query_one("#glitch-status", DataTable)
-        status_table.update_cell(param_name, "Value", str(new_value))
-
-    async def trigger_glitch(self) -> None:
-        """Trigger a single glitch or start continuous glitching"""
-        if not self.selected_device:
-            self.console_log.write_line("[!] No glitch device selected")
-            return
-
-        conn = self.connections.get(self.selected_device)
-        if not conn or not isinstance(conn.backend, GlitchBackend):
-            self.console_log.write_line("[!] Selected device does not support glitching")
-            return
-
-        try:
-            from ..backends import GlitchConfig
-
-            cfg = GlitchConfig(
-                width_ns=float(self.glitch_length),
-                offset_ns=float(self.glitch_delay),
-                repeat=self.glitch_repeat
-            )
-
-            conn.backend.configure_glitch(cfg)
-            conn.backend.trigger()
-
-            self.console_log.write_line(f"[*] Glitch: {self.glitch_length}ns @ {self.glitch_delay}ns, repeat={self.glitch_repeat}")
-
-        except Exception as e:
-            self.console_log.write_line(f"[!] Glitch failed: {e}")
-
-    async def add_uart_filter(self) -> None:
-        """Add a new UART regex filter"""
-        pattern_input = self.query_one("#filter-pattern", Input)
-        pattern = pattern_input.value.strip()
-
-        if not pattern:
-            return
-
-        # Validate regex
-        try:
-            re.compile(pattern)
-        except re.error as e:
-            self.console_log.write_line(f"[!] Invalid regex: {e}")
-            return
-
-        # Add filter
-        uart_filter = UartFilter(pattern=pattern, color="#00ff00")
-        self.uart_filters.append(uart_filter)
-
-        self.console_log.write_line(f"[+] Added UART filter: {pattern}")
-        pattern_input.value = ""
-
-        # TODO: Update filter list display
-
-    async def handle_protocol_button(self, button_id: str) -> None:
-        """Handle SPI/I2C/Debug button presses"""
-        self.console_log.write_line(f"[*] {button_id} - not yet implemented")
-
-        # Implementation will depend on which device is selected and what protocol
-
-    async def on_serial_data_message(self, message: SerialDataMessage) -> None:
-        """Handle incoming serial data from any device"""
-        # Write to console
-        self.console_log.write(f"[{message.device_id}] {message.data}")
-
-        # Write to UART tab with filtering
-        uart_output = message.data
-
-        # Apply filters
-        for uart_filter in self.uart_filters:
-            if not uart_filter.enabled:
-                continue
-
-            try:
-                if re.search(uart_filter.pattern, uart_output):
-                    # Highlight matching text
-                    # TODO: Apply color highlighting
-                    pass
-            except re.error:
-                pass
-
-        self.uart_log.write(f"[{message.device_id}] {uart_output}")
 
 
 def run_tui():

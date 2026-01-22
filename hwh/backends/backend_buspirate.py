@@ -552,5 +552,168 @@ class BusPirateBackend(BusBackend):
             return self._client.configuration_request(pullup_disable=True)
 
 
+    # --------------------------------------------------------------------------
+    # Logic Analyzer (SUMP Protocol)
+    # --------------------------------------------------------------------------
+
+    def enter_sump_mode(self) -> bool:
+        """
+        Enter SUMP logic analyzer mode.
+
+        Bus Pirate uses SUMP protocol for logic analyzer functionality.
+        This switches from BPIO2 mode to SUMP mode.
+        """
+        import serial
+        import time
+
+        if not self.device.port:
+            return False
+
+        # SUMP runs on the console port (buspirate1)
+        console_port = self.device.port
+
+        try:
+            print(f"[BusPirate] Entering SUMP mode via: {console_port}")
+
+            # Open console port
+            ser = serial.Serial(console_port, 115200, timeout=2)
+            time.sleep(0.1)
+            ser.reset_input_buffer()
+            ser.reset_output_buffer()
+
+            # Send binmode command
+            ser.write(b'binmode\r\n')
+            time.sleep(0.5)
+
+            # Read response
+            if ser.in_waiting > 0:
+                response = ser.read(ser.in_waiting)
+                print(f"[BusPirate] Menu: {response.decode('utf-8', errors='ignore')[:100]}")
+
+            # Select SUMP mode (option 1 in binmode menu)
+            ser.write(b'1\r\n')
+            time.sleep(0.5)
+
+            if ser.in_waiting > 0:
+                response = ser.read(ser.in_waiting)
+                print(f"[BusPirate] SUMP mode: {response.decode('utf-8', errors='ignore')[:100]}")
+
+            ser.close()
+            time.sleep(0.5)
+
+            return True
+
+        except Exception as e:
+            print(f"[BusPirate] SUMP mode failed: {e}")
+            return False
+
+    def capture_logic(
+        self,
+        sample_rate: int = 1_000_000,
+        sample_count: int = 8192,
+        channels: int = 8,
+        trigger_channel: int | None = None,
+        trigger_edge: str = "rising",
+        timeout: float = 10.0
+    ) -> dict | None:
+        """
+        Capture logic analyzer data using SUMP protocol.
+
+        Args:
+            sample_rate: Sample rate in Hz (max 62.5MHz on BP5/6)
+            sample_count: Number of samples to capture
+            channels: Number of channels (8 on Bus Pirate)
+            trigger_channel: Channel to trigger on (None for immediate)
+            trigger_edge: "rising" or "falling"
+            timeout: Capture timeout in seconds
+
+        Returns:
+            Dictionary with capture data or None on error:
+            {
+                'channels': int,
+                'sample_rate': int,
+                'samples': List[List[int]],  # Per-channel sample lists
+                'trigger_position': int,
+                'raw_data': bytes
+            }
+        """
+        import serial
+
+        # Bus Pirate SUMP runs on the console port
+        console_port = self.device.port
+
+        try:
+            # Enter SUMP mode first
+            if not self.enter_sump_mode():
+                return None
+
+            # Open serial for SUMP
+            print(f"[BusPirate] Opening SUMP connection: {console_port}")
+            sump_serial = serial.Serial(console_port, 115200, timeout=2)
+
+            # Import and use SUMP client
+            from .sump import SUMPClient, SUMPConfig
+
+            client = SUMPClient(sump_serial, debug=True)
+
+            # Reset
+            client.reset()
+
+            # Check device
+            success, device_id = client.identify()
+            if not success:
+                print(f"[BusPirate] SUMP not responding: {device_id}")
+                sump_serial.close()
+                return None
+
+            print(f"[BusPirate] SUMP device: {device_id}")
+
+            # Get metadata
+            metadata = client.get_metadata()
+            if metadata:
+                print(f"[BusPirate] SUMP metadata: {metadata}")
+
+            # Configure capture
+            config = SUMPConfig(
+                sample_rate=sample_rate,
+                sample_count=sample_count,
+                channels=channels,
+                base_clock=62_500_000,  # Bus Pirate 5/6 base clock
+            )
+
+            # Set trigger
+            if trigger_channel is not None and 0 <= trigger_channel < channels:
+                config.trigger_mask = 1 << trigger_channel
+                config.trigger_value = (1 << trigger_channel) if trigger_edge == "rising" else 0
+
+            client.configure(config)
+
+            # Capture
+            print(f"[BusPirate] Starting capture...")
+            capture = client.capture(timeout=timeout)
+
+            sump_serial.close()
+
+            if capture:
+                return {
+                    'channels': capture.channels,
+                    'sample_rate': capture.sample_rate,
+                    'samples': capture.samples,
+                    'trigger_position': capture.trigger_position,
+                    'raw_data': capture.raw_data
+                }
+            else:
+                return None
+
+        except ImportError:
+            print("[BusPirate] pyserial not installed")
+            return None
+        except Exception as e:
+            print(f"[BusPirate] Capture failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+
 # Register this backend for buspirate device type
 register_backend("buspirate", BusPirateBackend)

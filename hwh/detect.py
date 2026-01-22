@@ -59,6 +59,11 @@ KNOWN_USB_DEVICES = {
 
     # Curious Bolt (voltage glitching, logic analyzer, power analysis)
     (0xCAFE, 0x4002): ("Curious Bolt", "bolt", ["voltage_glitch", "logic_analyzer", "power_analysis"]),
+
+    # Common UART adapters
+    (0x1A86, 0x7523): ("CH340 UART", "uart", ["uart"]),
+    (0x10C4, 0xEA60): ("CP2102 UART", "uart", ["uart"]),
+    (0x067B, 0x2303): ("PL2303 UART", "uart", ["uart"]),
 }
 
 # Serial port patterns for fallback detection

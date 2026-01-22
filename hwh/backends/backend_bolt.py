@@ -259,22 +259,127 @@ class BoltBackend(GlitchBackend):
         return results
     
     # --------------------------------------------------------------------------
-    # Logic Analyzer (via PulseView/SUMP)
+    # Logic Analyzer (via SUMP protocol)
     # --------------------------------------------------------------------------
-    
+
     def start_capture(self, channels: list[int], sample_rate_hz: int = 1_000_000) -> bool:
         """
         Start logic analyzer capture.
-        
+
         Note: The Bolt's logic analyzer is typically accessed via PulseView using
         the SUMP protocol. This method provides basic programmatic access.
         """
         if not self._connected:
             return False
-        
+
         print(f"[Bolt] STUB: start_capture - use PulseView for logic analysis")
         print(f"  Configure PulseView with: sigrok-cli -d fx2lafw:samplerate={sample_rate_hz}")
         return False
+
+    def capture_logic(
+        self,
+        sample_rate: int = 1_000_000,
+        sample_count: int = 8192,
+        channels: int = 8,
+        trigger_channel: int | None = None,
+        trigger_edge: str = "rising",
+        timeout: float = 10.0
+    ) -> dict | None:
+        """
+        Capture logic analyzer data using SUMP protocol.
+
+        The Bolt supports SUMP protocol for logic analyzer access.
+        This method uses the shared SUMP implementation.
+
+        Args:
+            sample_rate: Sample rate in Hz (max varies by device)
+            sample_count: Number of samples to capture
+            channels: Number of channels (8 for Bolt)
+            trigger_channel: Channel to trigger on (None = immediate)
+            trigger_edge: "rising" or "falling"
+            timeout: Capture timeout in seconds
+
+        Returns:
+            Dict with keys: channels, sample_rate, samples, trigger_position
+            Or None on error
+        """
+        if not self._connected:
+            return None
+
+        # For Bolt, we need direct serial access for SUMP mode
+        serial_port = None
+
+        if hasattr(self, '_serial') and self._serial:
+            serial_port = self._serial
+        elif self.device.port:
+            # Open a new serial connection for SUMP
+            try:
+                import serial
+                serial_port = serial.Serial(
+                    self.device.port,
+                    baudrate=115200,
+                    timeout=1
+                )
+            except Exception as e:
+                print(f"[Bolt] Failed to open serial for SUMP: {e}")
+                return None
+
+        if not serial_port:
+            print("[Bolt] No serial port available for SUMP capture")
+            return None
+
+        try:
+            from .sump import SUMPClient, SUMPConfig
+
+            client = SUMPClient(serial_port, debug=False)
+
+            # Reset and identify
+            client.reset()
+            success, device_id = client.identify()
+
+            if not success:
+                print(f"[Bolt] SUMP device not responding (got: {device_id})")
+                return None
+
+            print(f"[Bolt] SUMP device identified: {device_id}")
+
+            # Configure capture
+            config = SUMPConfig(
+                sample_rate=sample_rate,
+                sample_count=sample_count,
+                channels=channels,
+            )
+
+            # Set trigger if specified
+            if trigger_channel is not None and 0 <= trigger_channel < channels:
+                config.trigger_mask = 1 << trigger_channel
+                if trigger_edge == "rising":
+                    config.trigger_value = 1 << trigger_channel
+                else:
+                    config.trigger_value = 0
+
+            client.configure(config)
+
+            print(f"[Bolt] Starting capture: {sample_rate/1e6:.1f}MHz, {sample_count} samples")
+            capture = client.capture(timeout=timeout)
+
+            if capture:
+                return {
+                    "channels": capture.channels,
+                    "sample_rate": capture.sample_rate,
+                    "samples": capture.samples,
+                    "trigger_position": capture.trigger_position,
+                    "raw_data": capture.raw_data,
+                }
+
+            return None
+
+        except ImportError:
+            print("[Bolt] SUMP module not available")
+            return None
+        except Exception as e:
+            print(f"[Bolt] SUMP capture error: {e}")
+            return None
     
     # --------------------------------------------------------------------------
     # Differential Power Analysis

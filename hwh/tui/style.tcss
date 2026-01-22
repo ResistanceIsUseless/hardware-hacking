@@ -11,302 +11,866 @@
  * Chinese Black: #141618
  */
 
+/* === Global Styles === */
+
 Screen {
     background: #141618;
-    layout: horizontal;
 }
 
-/* Main Layout */
-#main-layout {
-    layout: horizontal;
-    width: 100%;
+Header {
+    background: #2F596D;
+    color: #9DC3CF;
+}
+
+Footer {
+    background: #2F596D;
+    color: #9DC3CF;
+}
+
+/* === Main Layout === */
+
+#main-tabs {
     height: 100%;
 }
 
-/* Sidebar - Device List and Glitch Controls */
-#sidebar {
-    width: 40;
-    dock: left;
-    layout: vertical;
+TabbedContent ContentSwitcher {
+    height: 1fr;
 }
 
-#device-section {
-    border: round #2F596D;
-    border-title-color: #2F596D;
-    border-title-style: bold;
-    height: auto;
-    margin-bottom: 1;
+TabPane {
+    height: 100%;
+    padding: 0;
+}
+
+/* Tab styling */
+Tabs {
+    background: #141618;
+}
+
+Tab {
+    background: #2F596D;
+    color: #9DC3CF;
+    padding: 0 2;
+}
+
+Tab:hover {
+    background: #5E99AE;
+}
+
+Tab.-active {
+    background: #5E99AE;
+    color: #141618;
+}
+
+/* === Devices Page === */
+
+#devices-page {
+    padding: 2;
+}
+
+#app-title {
+    text-align: center;
+    text-style: bold;
+    color: #5E99AE;
+    padding-bottom: 1;
+}
+
+.section-title {
+    color: #9DC3CF;
+    padding: 1 0;
+    text-style: bold;
 }
 
 #device-list {
+    height: 1fr;
+    border: round #2F596D;
     padding: 1;
-    height: auto;
 }
 
+.no-devices {
+    color: #B3B8BB;
+    text-align: center;
+    padding: 2;
+}
+
+/* Compact single-line device entries */
 .device-entry {
     height: 1;
-    margin-bottom: 1;
+    padding: 0 1;
+    margin: 0;
 }
 
-.status-on {
-    color: #5E99AE;
+.device-entry:hover {
+    background: #2F596D;
 }
 
-.status-off {
+.status-indicator {
+    width: 2;
     color: #B13840;
 }
 
-/* Glitch Controls Section */
-#glitch-section {
-    border: round #2F596D;
-    border-title-color: #2F596D;
-    border-title-style: bold;
-    height: auto;
-    padding: 1;
-}
-
-#glitch-section.hidden {
-    display: none;
-}
-
-.param-row {
-    height: 1;
-    margin-bottom: 1;
-    layout: horizontal;
-    align: center middle;
-}
-
-.param-label {
-    width: 8;
-    text-align: right;
-    padding-right: 1;
-    color: #9DC3CF;
-}
-
-.param-input {
-    width: 12;
-    height: 1;
-    border: none;
-    text-align: center;
-    background: #2F596D;
-    color: #9DC3CF;
-}
-
-.btn-adjust {
-    min-width: 5;
-    height: 1;
-    border: none;
-    background: #2F596D;
-    color: #9DC3CF;
-    margin: 0 1;
-}
-
-.btn-save {
-    width: 6;
-    min-width: 6;
-    height: 1;
-    border: none;
-    background: #2F596D;
-    color: #9DC3CF;
-}
-
-.btn-small {
-    width: 12;
-    min-width: 12;
-    height: 1;
-    border: none;
-    background: #2F596D;
-    color: #9DC3CF;
-}
-
-.glitch-control {
-    margin-top: 1;
-    align: center middle;
-}
-
-.btn-glitch {
-    width: 12;
-    height: 1;
-    border: none;
-    background: #2F596D;
-    color: #9DC3CF;
-}
-
-#glitch-switch {
-    background: #5E99AE;
-    border: none;
-}
-
-#glitch-switch > .switch--slider {
-    color: #B13840;
-    background: #141618;
-}
-
-#glitch-switch.-on > .switch--slider {
+.status-connected {
     color: #5E99AE;
 }
 
-#glitch-status {
-    margin-top: 1;
-    border: double #2F596D;
-    border-title-color: #2F596D;
-    border-title-style: bold;
+.status-disconnected {
+    color: #B13840;
+}
+
+.device-name {
+    width: 18;
     color: #9DC3CF;
+    text-style: bold;
 }
 
-/* Main Content Area */
-#main-content {
-    width: 1fr;
-    layout: vertical;
-}
-
-#tabs {
-    width: 100%;
-    height: 100%;
-}
-
-/* Console Tab */
-#console-output {
-    height: 1fr;
-    background: #141618;
+.device-port {
+    width: 28;
     color: #B3B8BB;
-    border: round #2F596D;
-    scrollbar-color: #2F596D;
-    scrollbar-color-hover: #5E99AE;
-    scrollbar-color-active: #5E99AE;
 }
 
-.input-row {
-    height: 1;
-    dock: bottom;
-    layout: horizontal;
-    background: #141618;
-}
-
-.input-row Static {
-    width: 3;
-    color: #9DC3CF;
-}
-
-.input-row Input {
+.device-caps {
     width: 1fr;
-    border: none;
-    background: #141618;
-    color: #9DC3CF;
+    color: #5E99AE;
 }
 
-/* UART Tab */
-#uart-layout {
-    layout: horizontal;
-    width: 100%;
-    height: 100%;
-}
-
-.uart-output-section {
-    width: 1fr;
-    height: 100%;
-}
-
-#uart-output {
-    height: 1fr;
-    background: #141618;
-    color: #B3B8BB;
-    border: round #2F596D;
-    scrollbar-color: #2F596D;
-    scrollbar-color-hover: #5E99AE;
-    scrollbar-color-active: #5E99AE;
-}
-
-#uart-filters {
-    width: 30;
-    dock: right;
-    border: round #2F596D;
-    border-title-color: #2F596D;
-    border-title-style: bold;
-    padding: 1;
-}
-
-#filter-list {
-    height: 1fr;
-    margin: 1 0;
-}
-
-#filter-pattern {
-    width: 1fr;
-    border: none;
+.btn-connect {
+    width: 12;
     background: #2F596D;
     color: #9DC3CF;
 }
 
-#add-filter {
-    width: 8;
-    margin-left: 1;
+.btn-disconnect {
+    width: 12;
+    background: #B13840;
+    color: #9DC3CF;
 }
 
-/* SPI/I2C/Debug Tabs */
+/* === Panel Common Styles === */
+
+.panel-header {
+    height: 3;
+    padding: 1;
+    background: #2F596D;
+    align: left middle;
+}
+
+.device-title {
+    color: #9DC3CF;
+    text-style: bold;
+    padding-right: 2;
+}
+
+.section-subtitle {
+    color: #9DC3CF;
+    padding: 1 0;
+}
+
+.help-text {
+    color: #B3B8BB;
+    padding: 0 0 1 0;
+}
+
+/* === Configuration Grids === */
+
 .config-grid {
     grid-size: 2;
-    grid-columns: 1fr 2fr;
+    grid-columns: 12 1fr;
     padding: 1;
-    margin-bottom: 1;
 }
 
 .config-grid Static {
     color: #9DC3CF;
 }
 
-.config-grid Input {
-    border: none;
-    background: #2F596D;
-    color: #9DC3CF;
-}
+/* === Buttons === */
 
-.btn-wide {
-    width: 100%;
-    margin: 1 0;
-    border: none;
-    background: #2F596D;
-    color: #9DC3CF;
-}
-
-/* General Button Styling */
 Button {
-    border: none;
     background: #2F596D;
     color: #9DC3CF;
+    border: none;
+    min-width: 6;
 }
 
 Button:hover {
     background: #5E99AE;
+    color: #141618;
 }
 
 Button:focus {
     background: #5E99AE;
 }
 
-/* Input Fields */
+.button-row {
+    height: auto;
+    padding: 1;
+    align: left middle;
+}
+
+.btn-action {
+    margin-right: 1;
+}
+
+.btn-small {
+    min-width: 6;
+    width: auto;
+}
+
+.btn-wide {
+    width: 100%;
+    margin: 1 0;
+}
+
+/* === Input Fields - FIXED for proper text display === */
+
 Input {
     background: #2F596D;
     color: #9DC3CF;
+    border: tall #5E99AE;
+    padding: 0 1;
+    height: 3;
 }
 
 Input:focus {
     border: tall #5E99AE;
+    background: #141618;
 }
 
-/* Static Text */
-Static {
+Input > .input--cursor {
+    color: #9DC3CF;
+    background: #5E99AE;
+}
+
+Input > .input--placeholder {
+    color: #5E99AE;
+}
+
+.hex-input {
+    width: 14;
+}
+
+.file-input {
+    width: 20;
+}
+
+/* === Select Dropdowns === */
+
+Select {
+    background: #2F596D;
+    color: #9DC3CF;
+    border: none;
+}
+
+Select:focus {
+    border: tall #5E99AE;
+}
+
+SelectCurrent {
+    background: #2F596D;
     color: #9DC3CF;
 }
 
-/* DataTable */
+SelectOverlay {
+    background: #141618;
+    border: tall #5E99AE;
+}
+
+OptionList > .option-list--option-highlighted {
+    background: #5E99AE;
+    color: #141618;
+}
+
+.mode-select {
+    width: 14;
+}
+
+.voltage-select {
+    width: 10;
+}
+
+/* === Bolt Panel - Top Section === */
+
+#bolt-panel {
+    height: 100%;
+}
+
+.bolt-top-section {
+    height: auto;
+    min-height: 12;
+    padding: 1;
+    background: #141618;
+}
+
+.bolt-controls {
+    width: 1fr;
+}
+
+/* === Dial Rows (Parameter Controls) === */
+
+.dial-row {
+    height: 3;
+    align: left middle;
+    margin-bottom: 1;
+}
+
+.dial-label {
+    width: 8;
+    text-align: right;
+    padding-right: 1;
+    color: #9DC3CF;
+    text-style: bold;
+}
+
+.param-dial {
+    width: 20;
+    text-align: center;
+    color: #5E99AE;
+    padding: 0 1;
+}
+
+.btn-dial {
+    min-width: 5;
+    width: 5;
+    height: 1;
+    margin: 0;
+    padding: 0 1;
+    background: #2F596D;
+}
+
+.btn-neg {
+    color: #B13840;
+}
+
+.btn-neg:hover {
+    background: #B13840;
+    color: #9DC3CF;
+}
+
+.btn-pos {
+    color: #5E99AE;
+}
+
+.btn-pos:hover {
+    background: #5E99AE;
+    color: #141618;
+}
+
+/* === Glitch Toggle and Status === */
+
+.bolt-right-section {
+    width: 30;
+    align: center top;
+    padding: 0 1;
+}
+
+.glitch-toggle-container {
+    width: 100%;
+    height: auto;
+    align: center middle;
+    padding: 1;
+    border: round #2F596D;
+    margin-bottom: 1;
+}
+
+.glitch-toggle-label {
+    text-align: center;
+    color: #9DC3CF;
+    text-style: bold;
+    padding-bottom: 1;
+}
+
+.glitch-main-switch {
+    width: auto;
+}
+
+.glitch-state {
+    text-align: center;
+    color: #B3B8BB;
+    padding-top: 1;
+}
+
+.glitch-active {
+    color: #5E99AE;
+    text-style: bold;
+}
+
+.status-container {
+    width: 100%;
+    border: round #2F596D;
+    border-title-color: #5E99AE;
+    padding: 1;
+}
+
+.status-line {
+    color: #9DC3CF;
+    height: 1;
+}
+
+.status-spacer {
+    height: 1;
+}
+
+/* === Bolt Main Section === */
+
+.bolt-main-section {
+    height: 1fr;
+}
+
+.bolt-sidebar {
+    width: 26;
+    padding: 0 1;
+}
+
+/* === Triggers Section === */
+
+.triggers-section {
+    border: round #2F596D;
+    border-title-color: #5E99AE;
+    padding: 1;
+    margin-bottom: 1;
+    height: auto;
+}
+
+.triggers-grid {
+    grid-size: 4;
+    grid-columns: 2 3 auto 5;
+}
+
+.trigger-index {
+    color: #9DC3CF;
+    text-align: center;
+}
+
+.trigger-symbol {
+    color: #5E99AE;
+    text-align: center;
+    text-style: bold;
+}
+
+.trigger-switch {
+    width: auto;
+}
+
+.btn-edge {
+    width: 5;
+    min-width: 5;
+    height: 1;
+}
+
+/* === Profiles Section === */
+
+.profiles-section {
+    border: round #2F596D;
+    border-title-color: #5E99AE;
+    padding: 1;
+    margin-bottom: 1;
+    height: auto;
+}
+
+.profile-select {
+    width: 100%;
+    margin-bottom: 1;
+}
+
+.profile-buttons {
+    height: auto;
+}
+
+.btn-profile-action {
+    width: 1fr;
+    min-width: 6;
+}
+
+/* === Conditions Section === */
+
+.conditions-section {
+    border: round #2F596D;
+    border-title-color: #5E99AE;
+    padding: 1;
+    margin-bottom: 1;
+    height: auto;
+}
+
+.conditions-grid {
+    grid-size: 3;
+    grid-columns: 3 auto 5;
+}
+
+.condition-index {
+    color: #9DC3CF;
+}
+
+.condition-switch {
+    width: auto;
+}
+
+.btn-run-cond {
+    width: 5;
+    min-width: 5;
+    height: 1;
+}
+
+/* === UART Section === */
+
+.uart-section {
+    border: round #2F596D;
+    border-title-color: #5E99AE;
+    padding: 1;
+    height: auto;
+}
+
+.uart-input {
+    width: 100%;
+    margin-bottom: 1;
+    height: 3;
+}
+
+.uart-baud-row {
+    height: 3;
+    align: left middle;
+    margin-bottom: 1;
+}
+
+.uart-baud-label {
+    width: 5;
+    color: #9DC3CF;
+}
+
+.uart-baud-input {
+    width: 1fr;
+    height: 3;
+}
+
+.btn-uart {
+    width: 100%;
+    margin-bottom: 1;
+}
+
+.uart-options-row {
+    height: auto;
+    align: left middle;
+}
+
+.uart-opt-label {
+    width: auto;
+    color: #9DC3CF;
+    padding-right: 1;
+}
+
+/* === Bolt Content Area === */
+
+.bolt-content {
+    width: 1fr;
+    border: round #2F596D;
+    border-title-color: #5E99AE;
+    margin: 0 1;
+}
+
+.bolt-log {
+    height: 1fr;
+    background: #141618;
+    color: #B3B8BB;
+}
+
+.output-controls {
+    height: auto;
+    padding: 0 1;
+    align: right middle;
+}
+
+.btn-output-ctrl {
+    width: auto;
+    min-width: 8;
+    margin-left: 1;
+}
+
+.input-row {
+    height: 3;
+    padding: 0 1;
+    align: left middle;
+}
+
+.input-prompt {
+    width: 3;
+    color: #5E99AE;
+}
+
+.bolt-input-field {
+    width: 1fr;
+    height: 3;
+}
+
+/* === Console Section === */
+
+.console-section {
+    height: 12;
+    border: round #2F596D;
+    border-title-color: #5E99AE;
+    margin: 1;
+}
+
+.device-console {
+    height: 1fr;
+    background: #141618;
+    color: #B3B8BB;
+}
+
+/* === Log Widgets === */
+
+Log {
+    background: #141618;
+    color: #B3B8BB;
+    scrollbar-color: #2F596D;
+    scrollbar-color-hover: #5E99AE;
+}
+
+/* === DataTable === */
+
 DataTable {
     background: #141618;
     color: #9DC3CF;
 }
 
-/* Log Widgets */
-Log {
+/* === Switch === */
+
+Switch {
+    background: #2F596D;
+}
+
+Switch > .switch--slider {
+    color: #B13840;
     background: #141618;
+}
+
+Switch.-on > .switch--slider {
+    color: #5E99AE;
+}
+
+/* === UART Monitor === */
+
+.uart-config {
+    height: 3;
+    padding: 1;
+    align: left middle;
+}
+
+.uart-select {
+    width: 10;
+    margin-right: 1;
+}
+
+.uart-main {
+    height: 1fr;
+}
+
+.uart-output-section {
+    width: 1fr;
+    padding: 1;
+}
+
+.uart-log {
+    height: 1fr;
+    border: round #2F596D;
+    border-title-color: #5E99AE;
+}
+
+.filter-sidebar {
+    width: 30;
+    border: round #2F596D;
+    border-title-color: #5E99AE;
+    padding: 1;
+    margin: 1;
+}
+
+.filter-list {
+    height: 1fr;
+    margin: 1 0;
+}
+
+.add-filter-row {
+    height: 1;
+}
+
+.section-label {
+    color: #9DC3CF;
+    padding: 1 0;
+}
+
+.logging-row {
+    height: 1;
+    align: left middle;
+}
+
+.filter-buttons {
+    padding-top: 1;
+}
+
+/* === Warning Banner === */
+
+.warning-banner {
+    background: #B13840;
+    color: #9DC3CF;
+    text-align: center;
+    padding: 1;
+}
+
+/* === Status Indicators === */
+
+.status-safe {
+    color: #5E99AE;
+}
+
+.status-danger {
+    color: #B13840;
+}
+
+/* === Logic Analyzer === */
+
+.logic-analyzer {
+    padding: 1;
+    height: auto;
+    min-height: 12;
+}
+
+.logic-scale {
+    color: #5E99AE;
+    padding-bottom: 0;
+    height: 1;
+}
+
+.logic-channel {
+    color: #9DC3CF;
+    height: 1;
+}
+
+.logic-hint {
     color: #B3B8BB;
+    padding-top: 1;
+    height: 1;
+}
+
+.logic-controls {
+    height: auto;
+    padding: 1;
+    align: left middle;
+}
+
+.logic-buttons {
+    height: auto;
+    padding: 1;
+}
+
+.waveform-container {
+    height: 1fr;
+    border: round #2F596D;
+}
+
+/* Channel enable row */
+.channel-row {
+    height: 3;
+    align: left middle;
+    padding: 0 1;
+}
+
+.channel-num {
+    width: 2;
+    color: #5E99AE;
+    text-align: center;
+}
+
+.channel-toggle Switch {
+    width: auto;
+    margin-right: 1;
+}
+
+/* Logic analyzer widget */
+#logic-waveform {
+    height: auto;
+    min-height: 12;
+    border: round #2F596D;
+    border-title-color: #5E99AE;
+    padding: 0 1;
+}
+
+/* === Split View === */
+
+.split-selector-row {
+    height: 3;
+    padding: 0 1;
+    align: left middle;
+    background: #2F596D;
+}
+
+.split-label {
+    width: 5;
+    color: #9DC3CF;
+    text-style: bold;
+}
+
+.split-select {
+    width: 16;
+    margin-right: 1;
+    background: #141618;
+    color: #9DC3CF;
+    height: 1;
+}
+
+.split-container {
+    height: 1fr;
+}
+
+.split-pane {
+    width: 1fr;
+    height: 100%;
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+
+.split-placeholder {
+    color: #B3B8BB;
+    text-align: center;
+    padding: 4;
+}
+
+.split-divider {
+    width: 1;
+    background: #5E99AE;
+    color: #5E99AE;
+}
+
+/* === Coordination Tab === */
+
+#coordination-content {
+    padding: 2;
+}
+
+.coord-section {
+    padding: 1;
+    margin-bottom: 1;
+}
+
+.coord-label {
+    color: #9DC3CF;
+    text-style: bold;
+    padding-bottom: 1;
+}
+
+.coord-device {
+    color: #B3B8BB;
+    padding-left: 2;
+}
+
+.coord-buttons {
+    height: auto;
+    padding-top: 1;
+}
+
+.btn-coord {
+    margin-right: 1;
+}
+
+/* === Hidden class === */
+
+.hidden {
+    display: none;
 }
